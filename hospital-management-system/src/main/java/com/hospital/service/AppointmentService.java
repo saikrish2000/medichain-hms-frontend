@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
 @Service
@@ -19,11 +20,11 @@ import java.util.concurrent.atomic.AtomicLong;
 @Slf4j
 public class AppointmentService {
 
-    private final AppointmentRepository  appointmentRepo;
-    private final DoctorSlotRepository   slotRepo;
-    private final PatientRepository      patientRepo;
-    private final DoctorRepository       doctorRepo;
-    private final NotificationService    notificationService;
+    private final AppointmentRepository appointmentRepo;
+    private final DoctorSlotRepository  slotRepo;
+    private final PatientRepository     patientRepo;
+    private final DoctorRepository      doctorRepo;
+    private final NotificationService   notificationService;
 
     private static final AtomicLong SEQ = new AtomicLong(1000);
 
@@ -31,18 +32,18 @@ public class AppointmentService {
 
     @Transactional
     public Appointment bookAppointment(Long patientUserId, Long slotId,
-                                        String reason, String notes) {
+                                       String reason, String notes) {
         Patient patient = patientRepo.findByUserId(patientUserId)
             .orElseThrow(() -> new ResourceNotFoundException("Patient", "userId", patientUserId));
         DoctorSlot slot = slotRepo.findById(slotId)
             .orElseThrow(() -> new ResourceNotFoundException("DoctorSlot", "id", slotId));
 
-        if (slot.getIsBlocked())
+        if (Boolean.TRUE.equals(slot.getIsBlocked()))
             throw new BadRequestException("This slot is no longer available.");
 
         long booked = appointmentRepo.countBySlotIdAndStatus(slotId, AppointmentStatus.CONFIRMED)
                     + appointmentRepo.countBySlotIdAndStatus(slotId, AppointmentStatus.PENDING);
-        if (booked >= slot.getMaxPatients())
+        if (slot.getMaxPatients() != null && booked >= slot.getMaxPatients())
             throw new BadRequestException("This slot is fully booked.");
 
         String apptNumber = "APT-" + LocalDate.now().getYear() + "-"
@@ -50,31 +51,36 @@ public class AppointmentService {
 
         Appointment appt = Appointment.builder()
             .appointmentNumber(apptNumber)
-            .patient(patient).doctor(slot.getDoctor()).slot(slot)
-            .appointmentDate(slot.getSlotDate())
-            .appointmentTime(slot.getSlotTime())
+            .patient(patient)
+            .doctor(slot.getDoctor())
+            .slot(slot)
+            .appointmentDate(slot.getSlotDate() != null ? slot.getSlotDate() : LocalDate.now())
+            .appointmentTime(slot.getStartTime())
             .durationMinutes(slot.getDurationMinutes())
             .reasonForVisit(reason)
+            .symptoms(reason)
             .notes(notes)
             .status(AppointmentStatus.PENDING)
             .build();
 
         Appointment saved = appointmentRepo.save(appt);
 
-        // Notify doctor
-        notificationService.sendAppointmentRequestToDoctor(
-            saved.getDoctor().getUser().getEmail(),
-            saved.getDoctor().getUser().getFullName(),
-            saved.getPatient().getUser().getFullName(),
-            saved.getAppointmentDate(), saved.getAppointmentTime());
+        try {
+            notificationService.sendAppointmentRequestToDoctor(
+                saved.getDoctor().getUser().getEmail(),
+                saved.getDoctor().getUser().getFullName(),
+                saved.getPatient().getUser().getFullName(),
+                saved.getAppointmentDate(), saved.getAppointmentTime());
 
-        // Confirm receipt to patient
-        notificationService.sendAppointmentConfirmationToPatient(
-            saved.getPatient().getUser().getEmail(),
-            saved.getPatient().getUser().getFullName(),
-            apptNumber,
-            saved.getDoctor().getUser().getFullName(),
-            saved.getAppointmentDate(), saved.getAppointmentTime());
+            notificationService.sendAppointmentConfirmationToPatient(
+                saved.getPatient().getUser().getEmail(),
+                saved.getPatient().getUser().getFullName(),
+                apptNumber,
+                saved.getDoctor().getUser().getFullName(),
+                saved.getAppointmentDate(), saved.getAppointmentTime());
+        } catch (Exception e) {
+            log.warn("Notification failed (non-fatal): {}", e.getMessage());
+        }
 
         return saved;
     }
@@ -87,11 +93,13 @@ public class AppointmentService {
         validateDoctorOwnership(appt, doctorUserId);
         appt.setStatus(AppointmentStatus.CONFIRMED);
         appointmentRepo.save(appt);
-        notificationService.sendAppointmentStatusUpdate(
-            appt.getPatient().getUser().getEmail(),
-            appt.getPatient().getUser().getFullName(),
-            appt.getAppointmentNumber(), "CONFIRMED",
-            appt.getAppointmentDate(), appt.getAppointmentTime());
+        try {
+            notificationService.sendAppointmentStatusUpdate(
+                appt.getPatient().getUser().getEmail(),
+                appt.getPatient().getUser().getFullName(),
+                appt.getAppointmentNumber(), "CONFIRMED",
+                appt.getAppointmentDate(), appt.getAppointmentTime());
+        } catch (Exception e) { log.warn("Notification failed: {}", e.getMessage()); }
     }
 
     @Transactional
@@ -99,13 +107,15 @@ public class AppointmentService {
         Appointment appt = getById(appointmentId);
         validateDoctorOwnership(appt, doctorUserId);
         appt.setStatus(AppointmentStatus.REJECTED);
-        appt.setNotes("Rejected: " + reason);
+        appt.setRejectionReason(reason);
         appointmentRepo.save(appt);
-        notificationService.sendAppointmentStatusUpdate(
-            appt.getPatient().getUser().getEmail(),
-            appt.getPatient().getUser().getFullName(),
-            appt.getAppointmentNumber(), "REJECTED",
-            appt.getAppointmentDate(), appt.getAppointmentTime());
+        try {
+            notificationService.sendAppointmentStatusUpdate(
+                appt.getPatient().getUser().getEmail(),
+                appt.getPatient().getUser().getFullName(),
+                appt.getAppointmentNumber(), "REJECTED",
+                appt.getAppointmentDate(), appt.getAppointmentTime());
+        } catch (Exception e) { log.warn("Notification failed: {}", e.getMessage()); }
     }
 
     @Transactional
@@ -113,6 +123,14 @@ public class AppointmentService {
         Appointment appt = getById(appointmentId);
         validateDoctorOwnership(appt, doctorUserId);
         appt.setStatus(AppointmentStatus.COMPLETED);
+        appointmentRepo.save(appt);
+    }
+
+    @Transactional
+    public void markNoShow(Long appointmentId, Long doctorUserId) {
+        Appointment appt = getById(appointmentId);
+        validateDoctorOwnership(appt, doctorUserId);
+        appt.setStatus(AppointmentStatus.NO_SHOW);
         appointmentRepo.save(appt);
     }
 
@@ -129,11 +147,13 @@ public class AppointmentService {
             throw new BadRequestException("Cannot cancel a completed appointment.");
         appt.setStatus(AppointmentStatus.CANCELLED);
         appointmentRepo.save(appt);
-        notificationService.sendAppointmentStatusUpdate(
-            appt.getPatient().getUser().getEmail(),
-            appt.getPatient().getUser().getFullName(),
-            appt.getAppointmentNumber(), "CANCELLED",
-            appt.getAppointmentDate(), appt.getAppointmentTime());
+        try {
+            notificationService.sendAppointmentStatusUpdate(
+                appt.getPatient().getUser().getEmail(),
+                appt.getPatient().getUser().getFullName(),
+                appt.getAppointmentNumber(), "CANCELLED",
+                appt.getAppointmentDate(), appt.getAppointmentTime());
+        } catch (Exception e) { log.warn("Notification failed: {}", e.getMessage()); }
     }
 
     // ── QUERIES ───────────────────────────────────────────
@@ -154,11 +174,13 @@ public class AppointmentService {
             doctorId, PageRequest.of(page, 15));
     }
 
-    // ── NEXT APPOINTMENT for patient dashboard ─────────────
+    public List<Appointment> getTodayAppointments(Long doctorId) {
+        return appointmentRepo.findByDoctorIdAndAppointmentDateOrderByAppointmentTime(
+            doctorId, LocalDate.now());
+    }
 
     public Appointment getNextAppointment(Long patientId) {
-        return appointmentRepo
-            .findByPatientIdOrderByAppointmentDateDesc(patientId)
+        return appointmentRepo.findByPatientIdOrderByAppointmentDateDesc(patientId)
             .stream()
             .filter(a -> a.getStatus() == AppointmentStatus.CONFIRMED
                       || a.getStatus() == AppointmentStatus.PENDING)
@@ -167,16 +189,13 @@ public class AppointmentService {
             .orElse(null);
     }
 
-    // ── HELPERS ───────────────────────────────────────────
-
     public Appointment getById(Long id) {
         return appointmentRepo.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("Appointment", "id", id));
     }
 
     private void validateDoctorOwnership(Appointment appt, Long doctorUserId) {
-        Doctor doctor = appt.getDoctor();
-        if (!doctor.getUser().getId().equals(doctorUserId))
+        if (!appt.getDoctor().getUser().getId().equals(doctorUserId))
             throw new BadRequestException("Not your appointment.");
     }
 }

@@ -48,12 +48,20 @@ public class Appointment {
     @Column(name = "appointment_time", nullable = false)
     private LocalTime appointmentTime;
 
+    @Column(name = "duration_minutes")
+    private Integer durationMinutes = 30;
+
     @Enumerated(EnumType.STRING)
     private AppointmentType type = AppointmentType.IN_PERSON;
 
     @Enumerated(EnumType.STRING)
     private AppointmentStatus status = AppointmentStatus.PENDING;
 
+    /** Chief complaint / reason for visit */
+    @Column(name = "reason_for_visit", columnDefinition = "TEXT")
+    private String reasonForVisit;
+
+    /** Alias retained for backward compat with templates */
     @Column(name = "symptoms", columnDefinition = "TEXT")
     private String symptoms;
 
@@ -68,9 +76,6 @@ public class Appointment {
 
     @Column(name = "consultation_fee", precision = 10, scale = 2)
     private BigDecimal consultationFee;
-
-    @Column(name = "duration_minutes")
-    private Integer durationMinutes = 30;
 
     @Column(name = "is_paid")
     private Boolean isPaid = false;
@@ -103,10 +108,4 @@ public class Appointment {
     public enum AppointmentStatus {
         PENDING, CONFIRMED, REJECTED, CANCELLED, COMPLETED, NO_SHOW
     }
-
-    /** Alias for symptoms — used in booking forms */
-    @Transient
-    public String getReasonForVisit() { return symptoms; }
-    public void setReasonForVisit(String r) { this.symptoms = r; }
-
 }

@@ -11,14 +11,19 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import java.util.concurrent.atomic.AtomicLong;
+
 @Controller
 @RequestMapping("/patient")
 @RequiredArgsConstructor
 public class PatientController {
 
     private final PatientRepository    patientRepo;
+    private final UserRepository       userRepo;
     private final AppointmentService   appointmentService;
     private final MedicalRecordService recordService;
+
+    private static final AtomicLong PATIENT_SEQ = new AtomicLong(10000);
 
     // ── DASHBOARD ──────────────────────────────────────────
     @GetMapping("/dashboard")
@@ -26,14 +31,10 @@ public class PatientController {
         Patient patient = patientRepo.findByUserId(user.getId()).orElse(null);
         if (patient == null) return "redirect:/patient/complete-profile";
 
-        var appts        = appointmentService.getPatientAppointments(patient.getId(), 0);
-        var recentRecords= recordService.getPatientRecords(patient.getId(), 0).getContent();
-        var nextAppt     = appointmentService.getNextAppointment(patient.getId());
-
-        model.addAttribute("patient",       patient);
-        model.addAttribute("appointments",  appts);
-        model.addAttribute("recentRecords", recentRecords);
-        model.addAttribute("nextAppointment", nextAppt);
+        model.addAttribute("patient",      patient);
+        model.addAttribute("appointments", appointmentService.getPatientAppointments(patient.getId(), 0));
+        model.addAttribute("recentRecords", recordService.getPatientRecords(patient.getId(), 0).getContent());
+        model.addAttribute("nextAppointment", appointmentService.getNextAppointment(patient.getId()));
         return "patient/dashboard";
     }
 
@@ -44,11 +45,54 @@ public class PatientController {
         return "patient/complete-profile";
     }
 
-    // ── PROFILE ────────────────────────────────────────────
+    @PostMapping("/profile/save")
+    public String saveProfile(@AuthenticationPrincipal UserPrincipal userPrincipal,
+                              @RequestParam(required = false) String address,
+                              @RequestParam(required = false) String city,
+                              @RequestParam(required = false) String state,
+                              @RequestParam(required = false) String pincode,
+                              @RequestParam(required = false) String emergencyContactName,
+                              @RequestParam(required = false) String emergencyContactPhone,
+                              @RequestParam(required = false) String emergencyContactRelation,
+                              @RequestParam(required = false) String allergies,
+                              @RequestParam(required = false) String chronicConditions,
+                              @RequestParam(required = false) String insuranceProvider,
+                              @RequestParam(required = false) String insurancePolicyNumber,
+                              RedirectAttributes ra) {
+        User user = userRepo.findById(userPrincipal.getId())
+            .orElseThrow(() -> new RuntimeException("User not found"));
+
+        // Check if profile already exists, else create
+        Patient patient = patientRepo.findByUserId(userPrincipal.getId()).orElseGet(() -> {
+            Patient p = new Patient();
+            p.setUser(user);
+            p.setPatientIdNumber("PAT-" + String.format("%06d", PATIENT_SEQ.getAndIncrement()));
+            return p;
+        });
+
+        patient.setAddress(address);
+        patient.setCity(city);
+        patient.setState(state);
+        patient.setPincode(pincode);
+        patient.setEmergencyContactName(emergencyContactName);
+        patient.setEmergencyContactPhone(emergencyContactPhone);
+        patient.setEmergencyContactRelation(emergencyContactRelation);
+        patient.setAllergies(allergies);
+        patient.setChronicConditions(chronicConditions);
+        patient.setInsuranceProvider(insuranceProvider);
+        patient.setInsurancePolicyNumber(insurancePolicyNumber);
+
+        patientRepo.save(patient);
+        ra.addFlashAttribute("success", "Profile saved successfully!");
+        return "redirect:/patient/dashboard";
+    }
+
+    // ── PROFILE VIEW ───────────────────────────────────────
     @GetMapping("/profile")
     public String profile(@AuthenticationPrincipal UserPrincipal user, Model model) {
         Patient patient = patientRepo.findByUserId(user.getId())
-            .orElseThrow(() -> new RuntimeException("Patient not found"));
+            .orElse(null);
+        if (patient == null) return "redirect:/patient/complete-profile";
         model.addAttribute("patient", patient);
         return "patient/profile";
     }
@@ -70,7 +114,7 @@ public class PatientController {
         return "patient/record-detail";
     }
 
-    // ── PLACEHOLDER ROUTES ─────────────────────────────────
+    // ── VITALS ─────────────────────────────────────────────
     @GetMapping("/vitals")
     public String vitals(@AuthenticationPrincipal UserPrincipal user, Model model) {
         Patient patient = patientRepo.findByUserId(user.getId())
@@ -79,12 +123,8 @@ public class PatientController {
         return "patient/vitals";
     }
 
-    @GetMapping("/labs")
-    public String labs(Model model) { return "patient/labs"; }
-
-    @GetMapping("/adherence")
-    public String adherence(Model model) { return "patient/adherence"; }
-
-    @GetMapping("/wearables")
-    public String wearables(Model model) { return "patient/wearables"; }
+    // ── OTHER STUBS ────────────────────────────────────────
+    @GetMapping("/labs")     public String labs(Model m)      { return "patient/labs"; }
+    @GetMapping("/adherence") public String adherence(Model m) { return "patient/adherence"; }
+    @GetMapping("/wearables") public String wearables(Model m) { return "patient/wearables"; }
 }

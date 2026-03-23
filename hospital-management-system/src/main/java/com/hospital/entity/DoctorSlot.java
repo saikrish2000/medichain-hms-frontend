@@ -24,13 +24,12 @@ public class DoctorSlot {
     @JoinColumn(name = "doctor_id", nullable = false)
     private Doctor doctor;
 
-    // Specific date OR recurring day
     @Column(name = "slot_date")
     private LocalDate slotDate;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "day_of_week")
-    private DayOfWeek dayOfWeek;          // for recurring slots
+    private DayOfWeek dayOfWeek;
 
     @Column(name = "start_time", nullable = false)
     private LocalTime startTime;
@@ -39,7 +38,7 @@ public class DoctorSlot {
     private LocalTime endTime;
 
     @Column(name = "slot_duration_minutes")
-    private Integer slotDurationMinutes = 15; // each appointment unit
+    private Integer slotDurationMinutes = 30;
 
     @Column(name = "max_patients")
     private Integer maxPatients = 1;
@@ -59,6 +58,17 @@ public class DoctorSlot {
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
+
+    // ── Helpers ──────────────────────────────────────────
+
+    /** Returns the appointment time (alias for startTime, used in Appointment entity) */
+    public LocalTime getSlotTime() { return startTime; }
+
+    /** Duration alias used in Appointment booking */
+    public Integer getDurationMinutes() { return slotDurationMinutes != null ? slotDurationMinutes : 30; }
+
+    /** Is this slot currently blocked */
+    public Boolean getIsBlocked() { return status == SlotStatus.BLOCKED; }
 
     public enum SlotType   { SPECIFIC_DATE, RECURRING }
     public enum SlotStatus { AVAILABLE, BLOCKED, FULL }
