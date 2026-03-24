@@ -14,32 +14,21 @@
 
     <groupId>com.hospital</groupId>
     <artifactId>hospital-management-system</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
-    <name>Hospital Management System</name>
-    <description>Full-scale Hospital Chain Management System</description>
+    <version>1.0.0</version>
+    <name>Hospital Management System — API</name>
+    <description>Full-scale Hospital Chain Management System — REST API Backend</description>
 
     <properties>
         <java.version>17</java.version>
+        <node.version>v20.20.1</node.version>
     </properties>
 
     <dependencies>
 
-        <!-- Spring Boot Core -->
+        <!-- Spring Boot Core (REST API) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
-        </dependency>
-
-        <!-- Thymeleaf -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-thymeleaf</artifactId>
-        </dependency>
-
-        <!-- Thymeleaf Security Extras -->
-        <dependency>
-            <groupId>org.thymeleaf.extras</groupId>
-            <artifactId>thymeleaf-extras-springsecurity6</artifactId>
         </dependency>
 
         <!-- Spring Security -->
@@ -113,20 +102,6 @@
             <version>5.5.13.3</version>
         </dependency>
 
-        <!-- Apache PDFBox (for scanning/reading PDFs) -->
-        <dependency>
-            <groupId>org.apache.pdfbox</groupId>
-            <artifactId>pdfbox</artifactId>
-            <version>3.0.1</version>
-        </dependency>
-
-        <!-- Tess4J (OCR - document scanning) -->
-        <dependency>
-            <groupId>net.sourceforge.tess4j</groupId>
-            <artifactId>tess4j</artifactId>
-            <version>5.11.0</version>
-        </dependency>
-
         <!-- Lombok -->
         <dependency>
             <groupId>org.projectlombok</groupId>
@@ -141,23 +116,10 @@
             <version>3.2.0</version>
         </dependency>
 
-        <!-- WebSocket (for real-time GPS tracking) -->
+        <!-- WebSocket (real-time GPS tracking) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-websocket</artifactId>
-        </dependency>
-
-        <!-- Thymeleaf Layout Dialect -->
-        <dependency>
-            <groupId>nz.net.ultraq.thymeleaf</groupId>
-            <artifactId>thymeleaf-layout-dialect</artifactId>
-        </dependency>
-
-        <!-- Apache Commons FileUpload -->
-        <dependency>
-            <groupId>commons-fileupload</groupId>
-            <artifactId>commons-fileupload</artifactId>
-            <version>1.5</version>
         </dependency>
 
         <!-- Flyway (DB migrations) -->
@@ -180,6 +142,10 @@
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jsr310</artifactId>
         </dependency>
 
         <!-- Spring Boot DevTools -->
