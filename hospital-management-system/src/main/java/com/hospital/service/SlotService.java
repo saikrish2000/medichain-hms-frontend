@@ -1,9 +1,7 @@
 package com.hospital.service;
 
-import com.hospital.entity.Doctor;
 import com.hospital.entity.DoctorSlot;
-import com.hospital.entity.DoctorSlot.SlotStatus;
-import com.hospital.entity.DoctorSlot.SlotType;
+import com.hospital.entity.Doctor;
 import com.hospital.exception.BadRequestException;
 import com.hospital.exception.ResourceNotFoundException;
 import com.hospital.repository.DoctorRepository;
@@ -12,10 +10,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.DayOfWeek;
-import java.time.LocalDate;
-import java.time.LocalTime;
-import java.util.*;
+import java.time.*;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -25,109 +21,89 @@ public class SlotService {
     private final DoctorRepository     doctorRepo;
 
     public List<DoctorSlot> getDoctorSlots(Long doctorId) {
-        return slotRepo.findByDoctorIdAndIsActiveOrderByStartTime(doctorId, true);
+        return slotRepo.findByDoctorId(doctorId);
     }
 
-    public List<DoctorSlot> getAvailableSlots(Long doctorId, LocalDate date) {
-        return slotRepo.findAvailableSlots(doctorId, date, date.getDayOfWeek());
-    }
-
-    public Map<LocalDate, List<DoctorSlot>> getWeekCalendar(Long doctorId, LocalDate weekStart) {
-        LocalDate weekEnd = weekStart.plusDays(6);
-        List<DoctorSlot> slots = slotRepo.findSlotsForWeek(doctorId, weekStart, weekEnd);
-        Map<LocalDate, List<DoctorSlot>> calendar = new LinkedHashMap<>();
-        for (int i = 0; i < 7; i++) {
-            LocalDate day = weekStart.plusDays(i);
-            DayOfWeek dow = day.getDayOfWeek();
-            List<DoctorSlot> daySlots = new ArrayList<>();
-            for (DoctorSlot s : slots) {
-                boolean match = (s.getSlotType() == SlotType.SPECIFIC_DATE && day.equals(s.getSlotDate()))
-                             || (s.getSlotType() == SlotType.RECURRING && dow == s.getDayOfWeek());
-                if (match) daySlots.add(s);
-            }
-            daySlots.sort(Comparator.comparing(DoctorSlot::getStartTime));
-            calendar.put(day, daySlots);
+    @Transactional
+    public void createSpecificSlot(Long doctorId, LocalDate date,
+                                   LocalTime start, LocalTime end,
+                                   int durationMin, int maxPatients) {
+        Doctor doctor = doctorRepo.findById(doctorId)
+            .orElseThrow(() -> new ResourceNotFoundException("Doctor","id",doctorId));
+        LocalTime cursor = start;
+        while (cursor.plusMinutes(durationMin).compareTo(end) <= 0) {
+            DoctorSlot slot = new DoctorSlot();
+            slot.setDoctor(doctor);
+            slot.setSlotDate(date);
+            slot.setStartTime(cursor);
+            slot.setEndTime(cursor.plusMinutes(durationMin));
+            slot.setDurationMinutes(durationMin);
+            slot.setMaxPatients(maxPatients);
+            slot.setCurrentPatients(0);
+            slot.setIsBlocked(false);
+            slotRepo.save(slot);
+            cursor = cursor.plusMinutes(durationMin);
         }
-        return calendar;
     }
 
-    /** overload used by DoctorController */
     @Transactional
     public DoctorSlot createSpecificSlot(Long doctorId, DoctorSlot form) {
-        LocalTime end = form.getSlotDurationMinutes() != null
-            ? form.getStartTime().plusMinutes(form.getSlotDurationMinutes())
-            : form.getStartTime().plusMinutes(30);
-        return createSpecificSlot(doctorId, form.getSlotDate(), form.getStartTime(),
-            end, form.getSlotDurationMinutes() != null ? form.getSlotDurationMinutes() : 30,
-            form.getMaxPatients() != null ? form.getMaxPatients() : 1);
+        Doctor doctor = doctorRepo.findById(doctorId)
+            .orElseThrow(() -> new ResourceNotFoundException("Doctor","id",doctorId));
+        form.setDoctor(doctor);
+        form.setCurrentPatients(0);
+        form.setIsBlocked(false);
+        return slotRepo.save(form);
     }
 
     @Transactional
-    public DoctorSlot createSpecificSlot(Long doctorId, LocalDate date,
-                                         LocalTime start, LocalTime end,
-                                         int duration, int maxPatients) {
+    public DoctorSlot createRecurringSlot(Long doctorId, DayOfWeek day,
+                                           LocalTime start, LocalTime end,
+                                           int durationMin, int maxPatients,
+                                           LocalDate forDate) {
         Doctor doctor = doctorRepo.findById(doctorId)
-            .orElseThrow(() -> new ResourceNotFoundException("Doctor", "id", doctorId));
-        if (slotRepo.existsByDoctorIdAndSlotDateAndStartTime(doctorId, date, start))
-            throw new BadRequestException("A slot already exists at this time.");
-        return slotRepo.save(DoctorSlot.builder()
-            .doctor(doctor).slotDate(date).startTime(start).endTime(end)
-            .slotDurationMinutes(duration).maxPatients(maxPatients)
-            .slotType(SlotType.SPECIFIC_DATE).status(SlotStatus.AVAILABLE).isActive(true).build());
+            .orElseThrow(() -> new ResourceNotFoundException("Doctor","id",doctorId));
+        DoctorSlot slot = new DoctorSlot();
+        slot.setDoctor(doctor);
+        slot.setDayOfWeek(day);
+        slot.setSlotDate(forDate);
+        slot.setStartTime(start);
+        slot.setEndTime(end);
+        slot.setDurationMinutes(durationMin);
+        slot.setMaxPatients(maxPatients);
+        slot.setCurrentPatients(0);
+        slot.setIsBlocked(false);
+        slot.setIsRecurring(true);
+        return slotRepo.save(slot);
     }
 
-    /** Bulk create recurring slots for a date range (called by DoctorController) */
     @Transactional
-    public void createRecurringSlots(Long doctorId, DayOfWeek day, LocalTime start,
-                                      int duration, int maxPatients,
-                                      LocalDate from, LocalDate to) {
-        Doctor doctor = doctorRepo.findById(doctorId)
-            .orElseThrow(() -> new ResourceNotFoundException("Doctor", "id", doctorId));
-        LocalTime end = start.plusMinutes(duration);
-        LocalDate cursor = from;
-        while (!cursor.isAfter(to)) {
-            if (cursor.getDayOfWeek() == day &&
-                !slotRepo.existsByDoctorIdAndSlotDateAndStartTime(doctorId, cursor, start)) {
-                slotRepo.save(DoctorSlot.builder()
-                    .doctor(doctor).slotDate(cursor).dayOfWeek(day)
-                    .startTime(start).endTime(end)
-                    .slotDurationMinutes(duration).maxPatients(maxPatients)
-                    .slotType(SlotType.RECURRING).status(SlotStatus.AVAILABLE).isActive(true).build());
+    public void createRecurringSlots(Long doctorId, DayOfWeek day,
+                                     LocalTime start, LocalTime end,
+                                     int durationMin, int maxPatients, int weeksAhead) {
+        LocalDate cursor = LocalDate.now();
+        LocalDate limit  = cursor.plusWeeks(weeksAhead);
+        while (!cursor.isAfter(limit)) {
+            if (cursor.getDayOfWeek() == day) {
+                createSpecificSlot(doctorId, cursor, start, end, durationMin, maxPatients);
             }
             cursor = cursor.plusDays(1);
         }
     }
 
     @Transactional
-    public DoctorSlot createRecurringSlot(Long doctorId, DayOfWeek day,
-                                          LocalTime start, LocalTime end,
-                                          int duration, int maxPatients) {
-        Doctor doctor = doctorRepo.findById(doctorId)
-            .orElseThrow(() -> new ResourceNotFoundException("Doctor", "id", doctorId));
-        return slotRepo.save(DoctorSlot.builder()
-            .doctor(doctor).dayOfWeek(day).startTime(start).endTime(end)
-            .slotDurationMinutes(duration).maxPatients(maxPatients)
-            .slotType(SlotType.RECURRING).status(SlotStatus.AVAILABLE).isActive(true).build());
-    }
-
-    @Transactional
     public void toggleSlotBlock(Long slotId) {
         DoctorSlot slot = slotRepo.findById(slotId)
-            .orElseThrow(() -> new ResourceNotFoundException("Slot", "id", slotId));
-        if (slot.getStatus() == SlotStatus.BLOCKED) {
-            slot.setStatus(SlotStatus.AVAILABLE);
-            slot.setBlockReason(null);
-        } else {
-            slot.setStatus(SlotStatus.BLOCKED);
-        }
+            .orElseThrow(() -> new ResourceNotFoundException("Slot","id",slotId));
+        slot.setIsBlocked(!slot.getIsBlocked());
         slotRepo.save(slot);
     }
 
     @Transactional
     public void blockSlot(Long slotId, String reason) {
         DoctorSlot slot = slotRepo.findById(slotId)
-            .orElseThrow(() -> new ResourceNotFoundException("Slot", "id", slotId));
-        slot.setStatus(SlotStatus.BLOCKED);
+            .orElseThrow(() -> new ResourceNotFoundException("Slot","id",slotId));
+        slot.setIsBlocked(true);
         slot.setBlockReason(reason);
         slotRepo.save(slot);
     }
@@ -135,17 +111,14 @@ public class SlotService {
     @Transactional
     public void unblockSlot(Long slotId) {
         DoctorSlot slot = slotRepo.findById(slotId)
-            .orElseThrow(() -> new ResourceNotFoundException("Slot", "id", slotId));
-        slot.setStatus(SlotStatus.AVAILABLE);
+            .orElseThrow(() -> new ResourceNotFoundException("Slot","id",slotId));
+        slot.setIsBlocked(false);
         slot.setBlockReason(null);
         slotRepo.save(slot);
     }
 
     @Transactional
     public void deleteSlot(Long slotId) {
-        DoctorSlot slot = slotRepo.findById(slotId)
-            .orElseThrow(() -> new ResourceNotFoundException("Slot", "id", slotId));
-        slot.setIsActive(false);
-        slotRepo.save(slot);
+        slotRepo.deleteById(slotId);
     }
 }

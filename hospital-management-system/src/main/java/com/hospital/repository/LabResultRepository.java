@@ -1,10 +1,8 @@
 package com.hospital.repository;
 
-import com.hospital.entity.Bed;
+import com.hospital.entity.LabResult;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface BedRepository extends JpaRepository<Bed, Long> {
-    long countByIsOccupied(Boolean isOccupied);
-}
+public interface LabResultRepository extends JpaRepository<LabResult, Long> {}

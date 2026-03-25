@@ -44,6 +44,10 @@ public class AmbulanceCall {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
+    private LocalDateTime requestTime;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
     private CallStatus status = CallStatus.REQUESTED;
 
     @Column(name = "dispatched_at")

@@ -1,17 +1,13 @@
 package com.hospital.repository;
 
 import com.hospital.entity.LabOrder;
-import com.hospital.entity.LabOrder.OrderStatus;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.domain.*;
+import org.springframework.data.jpa.repository.*;
+import org.springframework.stereotype.Repository;
 
-import java.util.List;
-
+@Repository
 public interface LabOrderRepository extends JpaRepository<LabOrder, Long> {
-    Page<LabOrder> findByPatientIdOrderByCreatedAtDesc(Long patientId, Pageable pageable);
-    Page<LabOrder> findByDoctorIdOrderByCreatedAtDesc(Long doctorId, Pageable pageable);
-    Page<LabOrder> findByStatusOrderByCreatedAtDesc(OrderStatus status, Pageable pageable);
-    List<LabOrder> findByStatus(OrderStatus status);
-    long countByStatus(OrderStatus status);
+    Page<LabOrder> findByStatus(LabOrder.OrderStatus status, Pageable pageable);
+    Page<LabOrder> findByDoctorId(Long doctorId, Pageable pageable);
+    long countByStatus(LabOrder.OrderStatus status);
 }

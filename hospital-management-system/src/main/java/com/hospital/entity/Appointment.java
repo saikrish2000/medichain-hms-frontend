@@ -7,19 +7,18 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.LocalTime;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 @Entity
 @Table(name = "appointments")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class Appointment {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "appointment_number", unique = true, nullable = false, length = 30)
+    @Column(name = "appointment_number", unique = true, length = 30)
     private String appointmentNumber;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -57,11 +56,9 @@ public class Appointment {
     @Enumerated(EnumType.STRING)
     private AppointmentStatus status = AppointmentStatus.PENDING;
 
-    /** Chief complaint / reason for visit */
     @Column(name = "reason_for_visit", columnDefinition = "TEXT")
     private String reasonForVisit;
 
-    /** Alias retained for backward compat with templates */
     @Column(name = "symptoms", columnDefinition = "TEXT")
     private String symptoms;
 
@@ -89,6 +86,12 @@ public class Appointment {
     @Column(name = "follow_up_date")
     private LocalDate followUpDate;
 
+    @Column(name = "checked_in_at")
+    private LocalDateTime checkedInAt;
+
+    @Column(name = "completed_at")
+    private LocalDateTime completedAt;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "approved_by")
     private User approvedBy;
@@ -106,6 +109,6 @@ public class Appointment {
 
     public enum AppointmentType   { IN_PERSON, ONLINE }
     public enum AppointmentStatus {
-        PENDING, CONFIRMED, REJECTED, CANCELLED, COMPLETED, NO_SHOW
+        PENDING, CONFIRMED, REJECTED, CANCELLED, COMPLETED, NO_SHOW, IN_PROGRESS
     }
 }

@@ -6,7 +6,6 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -16,11 +15,10 @@ import java.util.List;
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class Invoice {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "invoice_number", unique = true, nullable = false, length = 30)
+    @Column(name = "invoice_number", unique = true, length = 30)
     private String invoiceNumber;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -37,41 +35,23 @@ public class Invoice {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private InvoiceStatus status = InvoiceStatus.PENDING;
-
-    @Column(name = "invoice_date", nullable = false)
-    private LocalDate invoiceDate;
-
-    @Column(name = "due_date")
-    private LocalDate dueDate;
-
-    @Column(name = "subtotal", precision = 12, scale = 2)
-    private BigDecimal subtotal = BigDecimal.ZERO;
-
-    @Column(name = "discount_amount", precision = 12, scale = 2)
-    private BigDecimal discountAmount = BigDecimal.ZERO;
-
-    @Column(name = "tax_amount", precision = 12, scale = 2)
-    private BigDecimal taxAmount = BigDecimal.ZERO;
+    private PaymentStatus status = PaymentStatus.PENDING;
 
     @Column(name = "total_amount", precision = 12, scale = 2)
     private BigDecimal totalAmount = BigDecimal.ZERO;
 
-    @Column(name = "paid_amount", precision = 12, scale = 2)
-    private BigDecimal paidAmount = BigDecimal.ZERO;
+    @Column(name = "amount_paid", precision = 12, scale = 2)
+    private BigDecimal amountPaid = BigDecimal.ZERO;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "payment_method")
     private PaymentMethod paymentMethod;
 
-    @Column(name = "razorpay_order_id", length = 100)
-    private String razorpayOrderId;
+    @Column(name = "transaction_id", length = 100)
+    private String transactionId;
 
-    @Column(name = "razorpay_payment_id", length = 100)
-    private String razorpayPaymentId;
-
-    @Column(name = "payment_date")
-    private LocalDateTime paymentDate;
+    @Column(name = "paid_at")
+    private LocalDateTime paidAt;
 
     @Column(name = "notes", columnDefinition = "TEXT")
     private String notes;
@@ -88,6 +68,6 @@ public class Invoice {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    public enum InvoiceStatus { PENDING, PAID, PARTIAL, CANCELLED, REFUNDED }
+    public enum PaymentStatus  { PENDING, PAID, PARTIAL, CANCELLED, REFUNDED }
     public enum PaymentMethod  { CASH, CARD, UPI, RAZORPAY, INSURANCE, WAIVED }
 }

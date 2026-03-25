@@ -14,8 +14,7 @@ import java.util.List;
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class Prescription {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -30,20 +29,21 @@ public class Prescription {
     @JoinColumn(name = "appointment_id")
     private Appointment appointment;
 
-    @Column(name = "prescription_date", nullable = false)
+    @Column(name = "prescription_date")
     private LocalDate prescriptionDate;
 
     @Column(name = "valid_until")
     private LocalDate validUntil;
 
     @Enumerated(EnumType.STRING)
-    private PrescriptionStatus status = PrescriptionStatus.ACTIVE;
+    @Column(nullable = false)
+    private Status status = Status.PENDING;
+
+    @Column(columnDefinition = "TEXT")
+    private String notes;
 
     @Column(name = "diagnosis_notes", columnDefinition = "TEXT")
     private String diagnosisNotes;
-
-    @Column(name = "doctor_notes", columnDefinition = "TEXT")
-    private String doctorNotes;
 
     @Column(name = "dispensed_by")
     private Long dispensedBy;
@@ -59,5 +59,5 @@ public class Prescription {
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
-    public enum PrescriptionStatus { ACTIVE, DISPENSED, EXPIRED, CANCELLED }
+    public enum Status { PENDING, DISPENSED, EXPIRED, CANCELLED }
 }

@@ -8,8 +8,7 @@ import lombok.*;
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class PrescriptionItem {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -17,23 +16,17 @@ public class PrescriptionItem {
     private Prescription prescription;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "medicine_id")
+    @JoinColumn(name = "medicine_id", nullable = false)
     private Medicine medicine;
 
-    @Column(name = "medicine_name", length = 200)
-    private String medicineName; // fallback if medicine not in DB
+    @Column(length = 100)
+    private String dosage;
 
-    @Column(nullable = false, length = 100)
-    private String dosage;        // "1 tablet"
+    @Column(length = 100)
+    private String frequency;
 
-    @Column(nullable = false, length = 100)
-    private String frequency;     // "Twice daily"
-
-    @Column(nullable = false, length = 50)
-    private String duration;      // "7 days"
-
-    @Column(length = 50)
-    private String timing;        // "After food"
+    @Column(length = 100)
+    private String duration;
 
     @Column(columnDefinition = "TEXT")
     private String instructions;

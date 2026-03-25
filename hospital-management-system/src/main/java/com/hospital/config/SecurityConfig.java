@@ -5,6 +5,7 @@ import com.hospital.security.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
@@ -27,16 +28,14 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter  jwtAuthFilter;
 
     @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder(12);
-    }
+    public PasswordEncoder passwordEncoder() { return new BCryptPasswordEncoder(12); }
 
     @Bean
     public DaoAuthenticationProvider authenticationProvider() {
-        var provider = new DaoAuthenticationProvider();
-        provider.setUserDetailsService(userDetailsService);
-        provider.setPasswordEncoder(passwordEncoder());
-        return provider;
+        var p = new DaoAuthenticationProvider();
+        p.setUserDetailsService(userDetailsService);
+        p.setPasswordEncoder(passwordEncoder());
+        return p;
     }
 
     @Bean
@@ -47,72 +46,57 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-            .csrf(csrf -> csrf.ignoringRequestMatchers("/api/**", "/ws/**"))
+            .csrf(csrf -> csrf.disable())
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-
-                // ── Public ─────────────────────────────────
-                .requestMatchers(
-                    "/", "/login", "/register", "/register/**",
-                    "/forgot-password", "/reset-password",
-                    "/verify-email", "/error"
-                ).permitAll()
-                .requestMatchers("/css/**", "/js/**", "/images/**",
-                    "/webjars/**", "/favicon.ico").permitAll()
+                // Public
                 .requestMatchers("/api/auth/**").permitAll()
-                .requestMatchers("/ws/**").permitAll()
+                .requestMatchers(HttpMethod.OPTIONS,"/**").permitAll()
+                .requestMatchers("/actuator/health").permitAll()
 
-                // ── ADMIN ──────────────────────────────────
-                .requestMatchers("/admin/**").hasRole("ADMIN")
+                // Appointments (booking — public specializations/doctors/slots for booking flow)
+                .requestMatchers(HttpMethod.GET,"/api/appointments/specializations").authenticated()
+                .requestMatchers(HttpMethod.GET,"/api/appointments/branches").authenticated()
+                .requestMatchers(HttpMethod.GET,"/api/appointments/doctors").authenticated()
+                .requestMatchers(HttpMethod.GET,"/api/appointments/slots").authenticated()
+                .requestMatchers(HttpMethod.POST,"/api/appointments/book").hasRole("PATIENT")
+                .requestMatchers("/api/appointments/**").authenticated()
 
-                // ── DOCTOR ─────────────────────────────────
-                .requestMatchers("/doctor/**").hasRole("DOCTOR")
-                .requestMatchers("/lab/orders").hasAnyRole("DOCTOR","LAB_TECHNICIAN","PHLEBOTOMIST")
+                // Admin
+                .requestMatchers("/api/admin/**").hasRole("ADMIN")
 
-                // ── APPOINTMENTS ───────────────────────────
-                .requestMatchers("/appointments/book/**", "/appointments/my/**",
-                    "/appointments/*/cancel").hasRole("PATIENT")
-                .requestMatchers("/appointments/**").authenticated()
+                // Doctor
+                .requestMatchers("/api/doctor/**").hasRole("DOCTOR")
 
-                // ── PATIENT ────────────────────────────────
-                .requestMatchers("/patient/**").hasRole("PATIENT")
+                // Patient
+                .requestMatchers("/api/patient/**").hasRole("PATIENT")
 
-                // ── NURSE ──────────────────────────────────
-                .requestMatchers("/nurse/**").hasAnyRole("NURSE","INDEPENDENT_NURSE")
+                // Nurse
+                .requestMatchers("/api/nurse/**").hasAnyRole("NURSE","INDEPENDENT_NURSE")
 
-                // ── BLOOD BANK ─────────────────────────────
-                .requestMatchers("/blood-bank/**")
-                    .hasAnyRole("BLOOD_BANK_MANAGER","ADMIN")
+                // Pharmacy
+                .requestMatchers("/api/pharmacy/**").hasAnyRole("PHARMACIST","ADMIN","DOCTOR","NURSE")
 
-                // ── AMBULANCE ──────────────────────────────
-                .requestMatchers("/ambulance/**")
-                    .hasAnyRole("AMBULANCE_OPERATOR","ADMIN")
+                // Lab
+                .requestMatchers("/api/lab/**").hasAnyRole("LAB_TECHNICIAN","PHLEBOTOMIST","DOCTOR","ADMIN")
 
-                // ── PHARMACY ───────────────────────────────
-                .requestMatchers("/pharmacy/**")
-                    .hasAnyRole("PHARMACIST","DOCTOR","NURSE","ADMIN")
+                // Billing
+                .requestMatchers("/api/billing/my-bills").hasRole("PATIENT")
+                .requestMatchers("/api/billing/**").authenticated()
 
-                // ── LAB ────────────────────────────────────
-                .requestMatchers("/lab/**")
-                    .hasAnyRole("LAB_TECHNICIAN","PHLEBOTOMIST","DOCTOR","ADMIN")
+                // Blood Bank
+                .requestMatchers("/api/blood-bank/**").hasAnyRole("BLOOD_BANK_MANAGER","ADMIN")
 
-                // ── EXTERNAL SERVICES ──────────────────────
-                .requestMatchers("/medical-shop/**").hasAnyRole("MEDICAL_SHOP_OWNER","ADMIN")
-                .requestMatchers("/diagnostic/**").hasAnyRole("DIAGNOSTIC_CENTER_OWNER","ADMIN")
+                // Ambulance
+                .requestMatchers("/api/ambulance/**").hasAnyRole("AMBULANCE_OPERATOR","ADMIN")
 
-                // ── BILLING ────────────────────────────────
-                .requestMatchers("/billing/**").authenticated()
+                // Receptionist
+                .requestMatchers("/api/receptionist/**").hasAnyRole("RECEPTIONIST","ADMIN")
 
-                // ── DEFAULT ────────────────────────────────
                 .anyRequest().authenticated()
             )
-            .formLogin(form -> form.disable())
-            .logout(logout -> logout
-                .logoutUrl("/logout")
-                .logoutSuccessUrl("/login?logout")
-                .deleteCookies("jwt_token")
-                .permitAll()
-            )
+            .formLogin(f -> f.disable())
+            .logout(l -> l.disable())
             .authenticationProvider(authenticationProvider())
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 

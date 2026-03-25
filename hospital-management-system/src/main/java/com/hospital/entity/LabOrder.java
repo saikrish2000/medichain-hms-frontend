@@ -14,11 +14,10 @@ import java.util.List;
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class LabOrder {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "order_number", unique = true, nullable = false, length = 30)
+    @Column(name = "order_number", unique = true, length = 30)
     private String orderNumber;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -37,27 +36,40 @@ public class LabOrder {
     @Column(nullable = false)
     private OrderStatus status = OrderStatus.ORDERED;
 
-    @Column(name = "ordered_at", nullable = false)
-    private LocalDateTime orderedAt;
-
-    @Column(name = "sample_collected_at")
-    private LocalDateTime sampleCollectedAt;
-
-    @Column(name = "results_at")
-    private LocalDateTime resultsAt;
-
-    @Column(name = "processed_by")
-    private Long processedBy; // Lab technician user ID
+    @ManyToMany
+    @JoinTable(name = "lab_order_tests",
+        joinColumns = @JoinColumn(name = "order_id"),
+        inverseJoinColumns = @JoinColumn(name = "test_id"))
+    @Builder.Default
+    private List<LabTest> tests = new ArrayList<>();
 
     @Column(name = "clinical_notes", columnDefinition = "TEXT")
     private String clinicalNotes;
 
-    @OneToMany(mappedBy = "labOrder", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Column(name = "result_notes", columnDefinition = "TEXT")
+    private String resultNotes;
+
+    @Column(name = "sample_collected_at")
+    private LocalDateTime sampleCollectedAt;
+
+    @Column(name = "completed_at")
+    private LocalDateTime completedAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "collected_by")
+    private User collectedBy;
+
+    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<LabResult> results = new ArrayList<>();
 
-    @CreationTimestamp @Column(name = "created_at", updatable = false) private LocalDateTime createdAt;
-    @UpdateTimestamp   @Column(name = "updated_at")                    private LocalDateTime updatedAt;
+    @CreationTimestamp
+    @Column(name = "created_at", updatable = false)
+    private LocalDateTime createdAt;
+
+    @UpdateTimestamp
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
 
     public enum OrderStatus { ORDERED, SAMPLE_COLLECTED, PROCESSING, COMPLETED, CANCELLED }
 }

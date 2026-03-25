@@ -6,18 +6,15 @@ import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
-import java.time.LocalTime;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 @Entity
-@Table(name = "doctor_slots",
-       uniqueConstraints = @UniqueConstraint(
-           columnNames = {"doctor_id","slot_date","start_time"}))
+@Table(name = "doctor_slots")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class DoctorSlot {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -37,17 +34,20 @@ public class DoctorSlot {
     @Column(name = "end_time", nullable = false)
     private LocalTime endTime;
 
-    @Column(name = "slot_duration_minutes")
-    private Integer slotDurationMinutes = 30;
+    @Column(name = "duration_minutes")
+    private Integer durationMinutes = 30;
 
     @Column(name = "max_patients")
     private Integer maxPatients = 1;
 
-    @Enumerated(EnumType.STRING)
-    private SlotType slotType = SlotType.SPECIFIC_DATE;
+    @Column(name = "current_patients")
+    private Integer currentPatients = 0;
 
-    @Enumerated(EnumType.STRING)
-    private SlotStatus status = SlotStatus.AVAILABLE;
+    @Column(name = "is_blocked")
+    private Boolean isBlocked = false;
+
+    @Column(name = "is_recurring")
+    private Boolean isRecurring = false;
 
     @Column(name = "block_reason", length = 255)
     private String blockReason;
@@ -58,18 +58,4 @@ public class DoctorSlot {
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
-
-    // ── Helpers ──────────────────────────────────────────
-
-    /** Returns the appointment time (alias for startTime, used in Appointment entity) */
-    public LocalTime getSlotTime() { return startTime; }
-
-    /** Duration alias used in Appointment booking */
-    public Integer getDurationMinutes() { return slotDurationMinutes != null ? slotDurationMinutes : 30; }
-
-    /** Is this slot currently blocked */
-    public Boolean getIsBlocked() { return status == SlotStatus.BLOCKED; }
-
-    public enum SlotType   { SPECIFIC_DATE, RECURRING }
-    public enum SlotStatus { AVAILABLE, BLOCKED, FULL }
 }

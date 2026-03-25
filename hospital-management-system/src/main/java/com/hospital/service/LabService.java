@@ -1,7 +1,6 @@
 package com.hospital.service;
 
 import com.hospital.entity.*;
-import com.hospital.entity.LabOrder.OrderStatus;
 import com.hospital.exception.ResourceNotFoundException;
 import com.hospital.repository.*;
 import com.hospital.security.UserPrincipal;
@@ -11,131 +10,87 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
 public class LabService {
 
-    private final LabOrderRepository labOrderRepo;
-    private final LabTestRepository  labTestRepo;
-    private final DoctorRepository   doctorRepo;
-    private final PatientRepository  patientRepo;
+    private final LabTestRepository   testRepo;
+    private final LabOrderRepository  orderRepo;
+    private final LabResultRepository resultRepo;
+    private final PatientRepository   patientRepo;
+    private final DoctorRepository    doctorRepo;
+    private final UserRepository      userRepo;
 
-    // ── TESTS ──────────────────────────────────────────────
-
-    public Page<LabTest> getAllTests(int page) {
-        return labTestRepo.findByIsActiveTrue(PageRequest.of(page, 30, Sort.by("name")));
-    }
-
-    public List<LabTest> searchTests(String query) {
-        return labTestRepo.searchByName(query);
-    }
-
-    @Transactional
-    public LabTest saveTest(LabTest test) {
-        return labTestRepo.save(test);
-    }
-
-    // ── ORDERS ─────────────────────────────────────────────
+    public LabTest saveTest(LabTest test) { return testRepo.save(test); }
 
     @Transactional
     public LabOrder createOrder(Long patientId, Long doctorId,
-                                 Long appointmentId, List<Long> testIds,
-                                 String clinicalNotes) {
+                                List<Long> testIds, String clinicalNotes) {
         Patient patient = patientRepo.findById(patientId)
-            .orElseThrow(() -> new ResourceNotFoundException("Patient", "id", patientId));
+            .orElseThrow(() -> new ResourceNotFoundException("Patient","id",patientId));
         Doctor doctor = doctorRepo.findById(doctorId)
-            .orElseThrow(() -> new ResourceNotFoundException("Doctor", "id", doctorId));
+            .orElseThrow(() -> new ResourceNotFoundException("Doctor","id",doctorId));
 
-        String orderNumber = "LAB-" +
-            LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmm")) +
-            "-" + String.format("%03d", (long)(Math.random() * 1000));
+        LabOrder order = new LabOrder();
+        order.setPatient(patient);
+        order.setDoctor(doctor);
+        order.setClinicalNotes(clinicalNotes);
+        order.setStatus(LabOrder.OrderStatus.ORDERED);
+        order.setCreatedAt(LocalDateTime.now());
 
-        LabOrder order = LabOrder.builder()
-            .orderNumber(orderNumber)
-            .patient(patient)
-            .doctor(doctor)
-            .status(OrderStatus.ORDERED)
-            .orderedAt(LocalDateTime.now())
-            .clinicalNotes(clinicalNotes)
-            .build();
-
-        List<LabResult> results = new ArrayList<>();
-        for (Long testId : testIds) {
-            LabTest test = labTestRepo.findById(testId)
-                .orElseThrow(() -> new ResourceNotFoundException("LabTest", "id", testId));
-            LabResult result = LabResult.builder()
-                .labOrder(order)
-                .labTest(test)
-                .normalRange(test.getNormalRange())
-                .unit(test.getUnit())
-                .flag(LabResult.ResultFlag.NORMAL)
-                .build();
-            results.add(result);
-        }
-        order.setResults(results);
-        return labOrderRepo.save(order);
+        List<LabTest> tests = testRepo.findAllById(testIds);
+        order.setTests(tests);
+        return orderRepo.save(order);
     }
 
     @Transactional
     public LabOrder collectSample(Long orderId, UserPrincipal technician) {
-        LabOrder order = labOrderRepo.findById(orderId)
-            .orElseThrow(() -> new ResourceNotFoundException("LabOrder", "id", orderId));
-        order.setStatus(OrderStatus.SAMPLE_COLLECTED);
+        LabOrder order = orderRepo.findById(orderId)
+            .orElseThrow(() -> new ResourceNotFoundException("LabOrder","id",orderId));
+        order.setStatus(LabOrder.OrderStatus.SAMPLE_COLLECTED);
         order.setSampleCollectedAt(LocalDateTime.now());
-        order.setProcessedBy(technician.getId());
-        return labOrderRepo.save(order);
+        User tech = userRepo.findById(technician.getId())
+            .orElseThrow(() -> new ResourceNotFoundException("User","id",technician.getId()));
+        order.setCollectedBy(tech);
+        return orderRepo.save(order);
     }
 
     @Transactional
-    public LabOrder enterResults(Long orderId, List<Map<String, Object>> resultData,
-                                  UserPrincipal technician) {
-        LabOrder order = labOrderRepo.findById(orderId)
-            .orElseThrow(() -> new ResourceNotFoundException("LabOrder", "id", orderId));
+    public LabOrder enterResults(Long orderId, List<Map<String,Object>> resultData,
+                                 String notes, UserPrincipal technician) {
+        LabOrder order = orderRepo.findById(orderId)
+            .orElseThrow(() -> new ResourceNotFoundException("LabOrder","id",orderId));
 
-        for (LabResult result : order.getResults()) {
-            resultData.stream()
-                .filter(r -> r.get("testId").toString().equals(result.getLabTest().getId().toString()))
-                .findFirst()
-                .ifPresent(r -> {
-                    result.setResultValue((String) r.get("value"));
-                    result.setRemarks((String) r.getOrDefault("remarks", ""));
-                    result.setEnteredBy(technician.getId());
-                    String flagStr = (String) r.getOrDefault("flag", "NORMAL");
-                    result.setFlag(LabResult.ResultFlag.valueOf(flagStr));
-                });
+        List<LabResult> results = new ArrayList<>();
+        for (Map<String,Object> rd : resultData) {
+            LabResult r = new LabResult();
+            r.setOrder(order);
+            r.setTestName((String) rd.get("testName"));
+            r.setResult((String) rd.get("result"));
+            r.setUnit((String) rd.getOrDefault("unit",""));
+            r.setReferenceRange((String) rd.getOrDefault("referenceRange",""));
+            r.setIsAbnormal(Boolean.TRUE.equals(rd.get("isAbnormal")));
+            results.add(r);
         }
-
-        order.setStatus(OrderStatus.COMPLETED);
-        order.setResultsAt(LocalDateTime.now());
-        return labOrderRepo.save(order);
-    }
-
-    public Page<LabOrder> getPendingOrders(int page) {
-        return labOrderRepo.findByStatusOrderByCreatedAtDesc(
-            OrderStatus.ORDERED, PageRequest.of(page, 20));
-    }
-
-    public Page<LabOrder> getPatientOrders(Long patientId, int page) {
-        return labOrderRepo.findByPatientIdOrderByCreatedAtDesc(
-            patientId, PageRequest.of(page, 10));
+        resultRepo.saveAll(results);
+        order.setResults(results);
+        order.setStatus(LabOrder.OrderStatus.COMPLETED);
+        order.setResultNotes(notes);
+        order.setCompletedAt(LocalDateTime.now());
+        return orderRepo.save(order);
     }
 
     public LabOrder getOrderById(Long id) {
-        return labOrderRepo.findById(id)
-            .orElseThrow(() -> new ResourceNotFoundException("LabOrder", "id", id));
+        return orderRepo.findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("LabOrder","id",id));
     }
 
-    public Map<String, Object> getDashboardStats() {
-        Map<String, Object> stats = new LinkedHashMap<>();
-        stats.put("pendingOrders",   labOrderRepo.countByStatus(OrderStatus.ORDERED));
-        stats.put("processingOrders",labOrderRepo.countByStatus(OrderStatus.PROCESSING));
-        stats.put("completedToday",  labOrderRepo.countByStatus(OrderStatus.COMPLETED));
-        stats.put("totalTests",      labTestRepo.count());
-        stats.put("recentOrders",    labOrderRepo.findAll(
-            PageRequest.of(0, 10, Sort.by("createdAt").descending())).getContent());
-        return stats;
+    public Page<LabOrder> getDoctorOrders(Long doctorId, int page) {
+        return orderRepo.findByDoctorId(doctorId, PageRequest.of(page,15,
+            Sort.by("createdAt").descending()));
     }
 }

@@ -1,16 +1,12 @@
 package com.hospital.repository;
 
 import com.hospital.entity.AmbulanceCall;
-import com.hospital.entity.AmbulanceCall.CallStatus;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.*;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
 
-import java.util.List;
-
+@Repository
 public interface AmbulanceCallRepository extends JpaRepository<AmbulanceCall, Long> {
-    Page<AmbulanceCall> findByStatusOrderByCreatedAtDesc(CallStatus status, Pageable pageable);
-    List<AmbulanceCall> findByAmbulanceIdAndStatusIn(Long ambulanceId, List<CallStatus> statuses);
-    Page<AmbulanceCall> findAllByOrderByCreatedAtDesc(Pageable pageable);
-    long countByStatus(CallStatus status);
+    long countByStatus(AmbulanceCall.CallStatus status);
+    Page<AmbulanceCall> findAllByOrderByRequestTimeDesc(Pageable pageable);
 }
