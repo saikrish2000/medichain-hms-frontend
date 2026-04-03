@@ -1,116 +1,82 @@
 import { useQuery } from '@tanstack/react-query';
-import { doctorApi } from '../../api';
-import { StatCard } from '../../components/ui/Card';
-import Badge from '../../components/ui/Badge';
-import { formatTime, formatDate } from '../../utils/helpers';
-import { Calendar, Users, FileText, Clock, CheckCircle2, Activity, Pill } from 'lucide-react';
+import api from '../../api/axios';
+import useAuthStore from '../../store/authStore';
+import StatCard from '../../components/ui/StatCard';
+import PageHeader from '../../components/ui/PageHeader';
+import LoadingSpinner from '../../components/ui/LoadingSpinner';
+import { useNavigate } from 'react-router-dom';
+
+const STATUS_COLOR = {
+  PENDING:'bg-yellow-100 text-yellow-700', CONFIRMED:'bg-blue-100 text-blue-700',
+  COMPLETED:'bg-green-100 text-green-700', CANCELLED:'bg-red-100 text-red-600',
+  NO_SHOW:'bg-gray-100 text-gray-600', IN_PROGRESS:'bg-purple-100 text-purple-700',
+};
 
 export default function DoctorDashboard() {
+  const { user } = useAuthStore();
+  const navigate = useNavigate();
+
   const { data, isLoading } = useQuery({
     queryKey: ['doctor-dashboard'],
-    queryFn:  () => doctorApi.getDashboard().then(r => r.data),
-    refetchInterval: 30000,
+    queryFn: () => api.get('/doctor/dashboard').then(r => r.data)
+  });
+  const { data: today = [] } = useQuery({
+    queryKey: ['doctor-today-appts'],
+    queryFn: () => api.get('/doctor/appointments/today').then(r => r.data)
   });
 
-  const d = data || {};
+  if (isLoading) return <LoadingSpinner />;
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">Good morning, Dr. {d.doctorName?.split(' ')[0] || '—'} 👋</h1>
-        <p className="text-sm text-slate-500 mt-0.5">Here's your schedule overview for today.</p>
+    <div>
+      <PageHeader title={`Good morning, Dr. ${user?.lastName || user?.username}!`} subtitle="Your schedule and activity overview" />
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <StatCard icon="📅" label="Today's Appointments" value={data?.todayAppointments}  color="blue"   />
+        <StatCard icon="👥" label="Total Patients"       value={data?.totalPatients}       color="green"  />
+        <StatCard icon="💊" label="Prescriptions"        value={data?.prescriptionsWritten} color="purple" />
+        <StatCard icon="🔬" label="Lab Orders"           value={data?.labOrdersCreated}    color="orange" />
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard title="Today's Appointments" value={d.todayCount ?? '—'} icon={<Calendar size={20} />} color="blue" />
-        <StatCard title="Pending"              value={d.pendingCount ?? '—'} icon={<Clock size={20} />}    color="amber" />
-        <StatCard title="Total Patients"       value={d.totalPatients ?? '—'} icon={<Users size={20} />}  color="green" />
-        <StatCard title="Prescriptions"        value={d.prescriptionCount ?? '—'} icon={<Pill size={20} />} color="purple" />
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Today's timeline */}
-        <div className="lg:col-span-2 bg-white rounded-2xl shadow-card border border-slate-100">
-          <div className="px-6 py-4 border-b border-slate-50 flex items-center justify-between">
-            <h3 className="text-base font-semibold text-slate-900">Today's Schedule</h3>
-            <a href="/doctor/appointments" className="text-xs text-primary-600 font-medium hover:text-primary-700">Full schedule →</a>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg font-semibold text-gray-800">Today's Appointments</h2>
+            <button onClick={() => navigate('/doctor/appointments')} className="text-xs text-blue-600 hover:underline">View all</button>
           </div>
-          <div className="divide-y divide-slate-50">
-            {isLoading ? (
-              [...Array(4)].map((_, i) => (
-                <div key={i} className="px-6 py-4 flex gap-4">
-                  <div className="skeleton w-14 h-14 rounded-xl flex-shrink-0" />
-                  <div className="flex-1 space-y-2"><div className="skeleton h-4 rounded w-40" /><div className="skeleton h-3 rounded w-24" /></div>
-                </div>
-              ))
-            ) : d.todayList?.length ? (
-              d.todayList.map((appt) => (
-                <div key={appt.id} className="px-6 py-4 flex items-center gap-4 hover:bg-slate-50/70 transition-colors">
-                  <div className="w-14 text-center flex-shrink-0">
-                    <p className="text-xs font-bold text-primary-600">{formatTime(appt.appointmentTime)}</p>
-                    <p className="text-xs text-slate-400">{appt.durationMinutes || 30}min</p>
+          {today.length === 0
+            ? <p className="text-gray-400 text-sm text-center py-8">No appointments today</p>
+            : <div className="space-y-3">
+                {today.slice(0,6).map(a => (
+                  <div key={a.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                    <div>
+                      <p className="text-sm font-medium">{a.patient?.user?.firstName} {a.patient?.user?.lastName}</p>
+                      <p className="text-xs text-gray-500">{a.slot?.startTime ? new Date('1970-01-01T'+a.slot.startTime).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : '—'}</p>
+                    </div>
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${STATUS_COLOR[a.status] || 'bg-gray-100 text-gray-600'}`}>
+                      {a.status}
+                    </span>
                   </div>
-                  <div className="w-px h-12 bg-slate-100" />
-                  <div className="w-9 h-9 rounded-xl bg-green-100 flex items-center justify-center flex-shrink-0">
-                    <Users size={16} className="text-green-600" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-slate-900 truncate">
-                      {appt.patient?.user?.firstName} {appt.patient?.user?.lastName}
-                    </p>
-                    <p className="text-xs text-slate-400 truncate">{appt.reasonForVisit || 'General Consultation'}</p>
-                  </div>
-                  <Badge status={appt.status} dot />
-                </div>
-              ))
-            ) : (
-              <div className="px-6 py-12 text-center text-sm text-slate-400">
-                <Calendar className="w-10 h-10 mx-auto mb-3 opacity-30" />
-                No appointments scheduled for today
+                ))}
               </div>
-            )}
-          </div>
+          }
         </div>
 
-        {/* Quick actions + featured patient */}
-        <div className="space-y-4">
-          {/* Quick actions */}
-          <div className="bg-white rounded-2xl shadow-card border border-slate-100 p-5">
-            <h3 className="text-sm font-semibold text-slate-900 mb-4">Quick Actions</h3>
-            <div className="space-y-2">
-              {[
-                { label: 'Write Prescription', href: '/doctor/prescriptions', icon: Pill,       color: 'blue' },
-                { label: 'Order Lab Tests',    href: '/doctor/lab-orders',    icon: Activity,   color: 'green' },
-                { label: 'Add Medical Record', href: '/doctor/records',        icon: FileText,   color: 'purple' },
-                { label: 'Manage Slots',       href: '/doctor/slots',          icon: Calendar,   color: 'amber' },
-              ].map(({ label, href, icon: Icon, color }) => (
-                <a key={href} href={href}
-                  className={`flex items-center gap-3 p-3 rounded-xl bg-${color}-50 hover:bg-${color}-100 transition-colors group`}>
-                  <div className={`w-8 h-8 rounded-lg bg-${color}-100 group-hover:bg-${color}-200 flex items-center justify-center transition-colors`}>
-                    <Icon size={15} className={`text-${color}-600`} />
-                  </div>
-                  <span className="text-sm font-medium text-slate-700">{label}</span>
-                </a>
-              ))}
-            </div>
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+          <h2 className="text-lg font-semibold text-gray-800 mb-4">Quick Actions</h2>
+          <div className="grid grid-cols-2 gap-3">
+            {[
+              {label:'Manage Slots',     path:'/doctor/slots',         color:'bg-blue-600',   icon:'🕐'},
+              {label:'Appointments',     path:'/doctor/appointments',  color:'bg-green-600',  icon:'📅'},
+              {label:'Patients',         path:'/doctor/patients',      color:'bg-purple-600', icon:'👥'},
+              {label:'Prescriptions',    path:'/doctor/prescriptions', color:'bg-yellow-600', icon:'💊'},
+              {label:'Lab Orders',       path:'/doctor/lab-orders',    color:'bg-orange-600', icon:'🔬'},
+            ].map(({label,path,color,icon}) => (
+              <button key={path} onClick={() => navigate(path)}
+                className={`${color} text-white p-3 rounded-xl text-sm font-medium hover:opacity-90 transition text-left flex items-center gap-2`}>
+                <span>{icon}</span>{label}
+              </button>
+            ))}
           </div>
-
-          {/* Pending approvals widget */}
-          {d.pendingAppts?.length > 0 && (
-            <div className="bg-amber-50 border border-amber-100 rounded-2xl p-5">
-              <div className="flex items-center gap-2 mb-3">
-                <Clock size={16} className="text-amber-600" />
-                <h3 className="text-sm font-semibold text-amber-800">{d.pendingAppts.length} pending approvals</h3>
-              </div>
-              <p className="text-xs text-amber-600 mb-3">Patients waiting for confirmation</p>
-              <a href="/doctor/appointments?filter=pending"
-                className="text-xs font-medium text-amber-700 hover:text-amber-800 underline">
-                Review now →
-              </a>
-            </div>
-          )}
         </div>
       </div>
     </div>

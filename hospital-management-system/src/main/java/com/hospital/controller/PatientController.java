@@ -1,80 +1,53 @@
 package com.hospital.controller;
 
 import com.hospital.entity.*;
-import com.hospital.service.*;
 import com.hospital.security.UserPrincipal;
+import com.hospital.service.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 import java.util.Map;
 
 @RestController
 @RequestMapping("/api/patient")
-@RequiredArgsConstructor
 @PreAuthorize("hasRole('PATIENT')")
+@RequiredArgsConstructor
 public class PatientController {
 
-    private final PatientService      patientService;
-    private final AppointmentService  appointmentService;
+    private final PatientService patientService;
+    private final AppointmentService appointmentService;
     private final MedicalRecordService medicalRecordService;
-    private final BillingService      billingService;
 
     @GetMapping("/dashboard")
-    public ResponseEntity<Map<String,Object>> dashboard(
-            @AuthenticationPrincipal UserPrincipal u) {
-        return ResponseEntity.ok(patientService.getDashboard(u.getId()));
+    public ResponseEntity<Map<String,Object>> dashboard(@AuthenticationPrincipal UserPrincipal me) {
+        return ResponseEntity.ok(patientService.getDashboard(me.getId()));
     }
 
-    @GetMapping("/profile")
-    public ResponseEntity<?> profile(@AuthenticationPrincipal UserPrincipal u) {
-        return ResponseEntity.ok(patientService.getProfile(u.getId()));
-    }
-
-    @PutMapping("/profile")
-    public ResponseEntity<?> updateProfile(@RequestBody Patient data,
-                                            @AuthenticationPrincipal UserPrincipal u) {
-        return ResponseEntity.ok(patientService.updateProfile(u.getId(), data));
-    }
-
-    // ── Appointments ─────────────────────────────────────
     @GetMapping("/appointments")
-    public ResponseEntity<?> appointments(
-            @RequestParam(defaultValue="0") int page,
-            @AuthenticationPrincipal UserPrincipal u) {
-        Long pid = patientService.getPatientIdByUserId(u.getId());
-        return ResponseEntity.ok(appointmentService.getPatientAppointments(pid, page));
+    public ResponseEntity<Page<Appointment>> myAppointments(@AuthenticationPrincipal UserPrincipal me,
+                                                              @RequestParam(defaultValue="0") int page) {
+        return ResponseEntity.ok(appointmentService.getPatientAppointments(me.getId(), page));
     }
 
     @PostMapping("/appointments/{id}/cancel")
-    public ResponseEntity<?> cancel(@PathVariable Long id,
-                                     @AuthenticationPrincipal UserPrincipal u) {
-        appointmentService.cancelByPatient(id, u.getId());
-        return ResponseEntity.ok(Map.of("message","Appointment cancelled"));
+    public ResponseEntity<Void> cancelAppointment(@PathVariable Long id,
+                                                   @AuthenticationPrincipal UserPrincipal me) {
+        appointmentService.cancelByPatient(id, me.getId());
+        return ResponseEntity.ok().build();
     }
 
-    // ── Medical Records ──────────────────────────────────
     @GetMapping("/records")
-    public ResponseEntity<?> records(
-            @RequestParam(defaultValue="0") int page,
-            @AuthenticationPrincipal UserPrincipal u) {
-        Long pid = patientService.getPatientIdByUserId(u.getId());
-        return ResponseEntity.ok(medicalRecordService.getPatientRecords(pid, page));
+    public ResponseEntity<List<MedicalRecord>> myRecords(@AuthenticationPrincipal UserPrincipal me) {
+        return ResponseEntity.ok(medicalRecordService.getPatientRecords(me.getId()));
     }
 
     @GetMapping("/vitals")
-    public ResponseEntity<?> vitals(@AuthenticationPrincipal UserPrincipal u) {
-        Long pid = patientService.getPatientIdByUserId(u.getId());
-        return ResponseEntity.ok(patientService.getVitals(pid));
-    }
-
-    // ── Billing ──────────────────────────────────────────
-    @GetMapping("/bills")
-    public ResponseEntity<?> bills(
-            @RequestParam(defaultValue="0") int page,
-            @AuthenticationPrincipal UserPrincipal u) {
-        Long pid = patientService.getPatientIdByUserId(u.getId());
-        return ResponseEntity.ok(billingService.getPatientInvoices(pid, page));
+    public ResponseEntity<List<MedicalRecord>> myVitals(@AuthenticationPrincipal UserPrincipal me) {
+        return ResponseEntity.ok(medicalRecordService.getPatientVitals(me.getId()));
     }
 }

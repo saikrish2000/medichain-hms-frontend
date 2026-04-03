@@ -30,3 +30,14 @@ public class MedicalRecordService {
         return recordRepo.save(data);
     }
 }
+
+    public java.util.List<MedicalRecord> getPatientRecords(Long userId) {
+        var patient = patientRepo.findByUserId(userId)
+            .orElseThrow(() -> new com.hospital.exception.ResourceNotFoundException("Patient not found"));
+        return recordRepo.findByPatientIdOrderByCreatedAtDesc(patient.getId(),
+            org.springframework.data.domain.PageRequest.of(0,50)).getContent();
+    }
+
+    public java.util.List<MedicalRecord> getPatientVitals(Long userId) {
+        return getPatientRecords(userId);
+    }
