@@ -44,8 +44,7 @@ public class AuthService {
             u.setLastLogin(LocalDateTime.now()); userRepository.save(u); });
         String access  = tokenProvider.generateToken(authentication);
         String refresh = tokenProvider.generateRefreshToken(up.getId());
-        auditService.log(up.getId(), up.getUsername(),
-            "USER_LOGIN","User",up.getId(),"unknown","SUCCESS");
+        auditService.log(up.getUsername(), "USER_LOGIN", "User", up.getId(), "Login successful");
         return buildResponse(up, access, refresh);
     }
 

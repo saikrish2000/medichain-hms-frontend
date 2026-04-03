@@ -4,22 +4,17 @@ import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
 
-@Entity
-@Table(name = "audit_logs")
+@Entity @Table(name = "audit_logs")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class AuditLog {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "user_id")
-    private Long userId;
-
-    @Column(length = 50)
+    @Column(name = "username", length = 100)
     private String username;
 
-    @Column(nullable = false, length = 100)
+    @Column(name = "action", length = 100)
     private String action;
 
     @Column(name = "entity_type", length = 100)
@@ -28,20 +23,18 @@ public class AuditLog {
     @Column(name = "entity_id")
     private Long entityId;
 
-    @Column(name = "ip_address", length = 50)
+    @Column(name = "details", columnDefinition = "TEXT")
+    private String details;
+
+    @Column(name = "status", length = 20)
+    private String status = "SUCCESS";
+
+    @Column(name = "ip_address", length = 45)
     private String ipAddress;
 
-    @Column(name = "user_agent", columnDefinition = "TEXT")
-    private String userAgent;
-
-    @Enumerated(EnumType.STRING)
-    private Status status = Status.SUCCESS;
-
-    @Column(columnDefinition = "TEXT")
-    private String notes;
-
-    @Column(name = "created_at")
+    @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
-    public enum Status { SUCCESS, FAILURE }
+    @PrePersist
+    protected void onCreate() { createdAt = LocalDateTime.now(); }
 }

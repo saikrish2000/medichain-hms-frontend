@@ -3,46 +3,50 @@ package com.hospital.entity;
 import com.hospital.enums.BloodGroup;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.UpdateTimestamp;
-
 import java.time.LocalDateTime;
 
-@Entity
-@Table(name = "blood_inventory",
-       uniqueConstraints = @UniqueConstraint(columnNames = {"blood_bank_id", "blood_group"}))
+@Entity @Table(name = "blood_inventory")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class BloodInventory {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "blood_bank_id", nullable = false)
-    private BloodBank bloodBank;
+    @JoinColumn(name = "bank_id", nullable = false)
+    private BloodBank bank;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "blood_group", nullable = false, length = 5)
+    @Column(name = "blood_group", nullable = false, length = 15)
     private BloodGroup bloodGroup;
 
     @Column(name = "units_available")
     private Integer unitsAvailable = 0;
 
-    @Column(name = "units_reserved")
-    private Integer unitsReserved = 0;
+    // legacy column name alias
+    @Column(name = "units_in_stock", insertable = false, updatable = false)
+    private Integer unitsInStock;
 
     @Column(name = "minimum_threshold")
     private Integer minimumThreshold = 5;
 
-    @UpdateTimestamp
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
+    @Column(name = "last_updated")
+    private LocalDateTime lastUpdated;
 
-    public Integer getUnitsUsable() {
-        return Math.max(0, unitsAvailable - unitsReserved);
+    @Column(name = "created_at", updatable = false)
+    private LocalDateTime createdAt;
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+        lastUpdated = LocalDateTime.now();
     }
 
+    @PreUpdate
+    protected void onUpdate() { lastUpdated = LocalDateTime.now(); }
+
     public boolean isBelowThreshold() {
-        return unitsAvailable <= minimumThreshold;
+        return (unitsAvailable != null ? unitsAvailable : 0)
+             <= (minimumThreshold != null ? minimumThreshold : 5);
     }
 }

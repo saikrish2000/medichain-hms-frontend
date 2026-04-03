@@ -2,19 +2,14 @@ package com.hospital.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
+import java.math.BigDecimal;
+import java.time.*;
 
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-
-@Entity
-@Table(name = "medical_records")
+@Entity @Table(name = "medical_records")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class MedicalRecord {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -22,61 +17,82 @@ public class MedicalRecord {
     private Patient patient;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "doctor_id", nullable = false)
-    private Doctor doctor;
-
-    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "appointment_id")
     private Appointment appointment;
 
-    @Column(name = "visit_date", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "doctor_id", nullable = false)
+    private Doctor doctor;
+
+    @Column(name = "record_date")
+    private LocalDate recordDate;
+
+    @Column(name = "visit_date")
     private LocalDate visitDate;
 
-    @Column(columnDefinition = "TEXT")
-    private String diagnosis;
+    @Column(name = "record_type", length = 50)
+    private String recordType = "VISIT";
 
-    @Column(columnDefinition = "TEXT")
+    @Column(name = "chief_complaint", columnDefinition = "TEXT")
+    private String chiefComplaint;
+
+    @Column(name = "symptoms", columnDefinition = "TEXT")
     private String symptoms;
 
-    @Column(columnDefinition = "TEXT")
-    private String treatment;
+    @Column(name = "diagnosis", columnDefinition = "TEXT")
+    private String diagnosis;
 
-    @Column(columnDefinition = "TEXT")
-    private String prescription;
+    @Column(name = "treatment_plan", columnDefinition = "TEXT")
+    private String treatmentPlan;
+
+    @Column(name = "notes", columnDefinition = "TEXT")
+    private String notes;
 
     @Column(name = "follow_up_date")
     private LocalDate followUpDate;
 
-    @Column(name = "follow_up_notes", columnDefinition = "TEXT")
-    private String followUpNotes;
-
-    // Vitals
+    // ── Vitals ──────────────────────────────────────────
     @Column(name = "blood_pressure", length = 20)
     private String bloodPressure;
 
-    @Column(name = "heart_rate")
-    private Integer heartRate;
+    @Column(name = "temperature", precision = 4, scale = 1)
+    private BigDecimal temperature;
 
-    @Column(name = "temperature", columnDefinition = "DECIMAL(4,1)")
-    private Double temperature;
+    @Column(name = "pulse_rate")
+    private Integer pulseRate;
 
-    @Column(name = "weight", columnDefinition = "DECIMAL(5,2)")
-    private Double weight;
+    @Column(name = "weight", precision = 5, scale = 2)
+    private BigDecimal weight;
 
-    @Column(name = "height", columnDefinition = "DECIMAL(5,2)")
-    private Double height;
+    @Column(name = "height", precision = 5, scale = 2)
+    private BigDecimal height;
 
-    @Column(name = "oxygen_saturation", columnDefinition = "DECIMAL(5,2)")
-    private Double oxygenSaturation;
+    @Column(name = "oxygen_saturation", precision = 5, scale = 2)
+    private BigDecimal oxygenSaturation;
 
-    @Column(name = "is_confidential")
-    private Boolean isConfidential = false;
+    @Column(name = "respiratory_rate")
+    private Integer respiratoryRate;
 
-    @CreationTimestamp
+    @Column(name = "is_active")
+    private Boolean isActive = true;
+
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
-    @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+        updatedAt  = LocalDateTime.now();
+        if (recordDate == null) recordDate = LocalDate.now();
+        if (visitDate == null) visitDate = recordDate;
+    }
+
+    @PreUpdate
+    protected void onUpdate() { updatedAt = LocalDateTime.now(); }
+
+    // Aliases for frontend response serialisation
+    public LocalDateTime getRecordedAt() { return createdAt; }
 }

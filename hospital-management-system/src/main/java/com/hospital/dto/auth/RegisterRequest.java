@@ -61,4 +61,6 @@ public class RegisterRequest {
     private String pincode;
 
     private String preferredLanguage = "en";
+
+    public String getUsernameOrEmail() { return username; }
 }

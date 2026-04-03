@@ -2,68 +2,72 @@ package com.hospital.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
-
 import java.time.LocalDateTime;
 
-@Entity
-@Table(name = "ambulance_calls")
+@Entity @Table(name = "ambulance_calls")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class AmbulanceCall {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "ambulance_id")
+    private Ambulance ambulance;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "patient_id")
     private Patient patient;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "ambulance_id")
-    private Ambulance ambulance;
+    @JoinColumn(name = "operator_id")
+    private User operator;
 
-    @Column(name = "caller_name", nullable = false, length = 100)
+    @Column(name = "caller_name", length = 100)
     private String callerName;
 
-    @Column(name = "caller_phone", nullable = false, length = 20)
+    @Column(name = "caller_phone", length = 20, nullable = false)
     private String callerPhone;
 
-    @Column(name = "pickup_address", nullable = false, columnDefinition = "TEXT")
+    @Column(name = "pickup_address", columnDefinition = "TEXT")
     private String pickupAddress;
 
     @Column(name = "pickup_latitude", precision = 10, scale = 8)
-    private Double pickupLatitude;
+    private java.math.BigDecimal pickupLatitude;
 
     @Column(name = "pickup_longitude", precision = 11, scale = 8)
-    private Double pickupLongitude;
+    private java.math.BigDecimal pickupLongitude;
 
-    @Column(name = "emergency_type", length = 100)
+    @Column(name = "emergency_type", length = 50)
     private String emergencyType;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private LocalDateTime requestTime;
+    @Column(name = "priority_level", length = 20)
+    private String priorityLevel = "HIGH";
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private CallStatus status = CallStatus.REQUESTED;
-
-    @Column(name = "dispatched_at")
-    private LocalDateTime dispatchedAt;
-
-    @Column(name = "arrived_at")
-    private LocalDateTime arrivedAt;
-
-    @Column(name = "completed_at")
-    private LocalDateTime completedAt;
+    @Column(name = "status", length = 30)
+    private String status = "PENDING";
 
     @Column(name = "notes", columnDefinition = "TEXT")
     private String notes;
 
-    @CreationTimestamp @Column(name = "created_at", updatable = false) private LocalDateTime createdAt;
-    @UpdateTimestamp   @Column(name = "updated_at")                    private LocalDateTime updatedAt;
+    @Column(name = "dispatched_at")
+    private LocalDateTime dispatchedAt;
 
-    public enum CallStatus { REQUESTED, DISPATCHED, ON_ROUTE, AT_SCENE, COMPLETED, CANCELLED }
+    @Column(name = "completed_at")
+    private LocalDateTime completedAt;
+
+    @Column(name = "created_at", updatable = false)
+    private LocalDateTime createdAt;
+
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+        updatedAt  = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    protected void onUpdate() { updatedAt = LocalDateTime.now(); }
 }

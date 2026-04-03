@@ -1,179 +1,136 @@
 package com.hospital.service;
 
 import com.hospital.entity.*;
-import com.hospital.entity.Doctor.ApprovalStatus;
-import com.hospital.exception.BadRequestException;
 import com.hospital.exception.ResourceNotFoundException;
 import com.hospital.repository.*;
-import com.hospital.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 @Service
 @RequiredArgsConstructor
 public class AdminService {
 
-    private final DoctorRepository         doctorRepo;
-    private final NurseRepository          nurseRepo;
-    private final PatientRepository        patientRepo;
-    private final UserRepository           userRepo;
-    private final DepartmentRepository     departmentRepo;
-    private final SpecializationRepository specializationRepo;
+    private final UserRepository          userRepo;
+    private final DoctorRepository        doctorRepo;
+    private final PatientRepository       patientRepo;
+    private final NurseRepository         nurseRepo;
+    private final DepartmentRepository    deptRepo;
+    private final SpecializationRepository specRepo;
     private final HospitalBranchRepository branchRepo;
-    private final AppointmentRepository    appointmentRepo;
-    private final InvoiceRepository        invoiceRepo;
-    private final AuditLogRepository       auditLogRepo;
-    private final NotificationService      notificationService;
-    private final AuditService             auditService;
+    private final AppointmentRepository   apptRepo;
+    private final AuditLogRepository      auditRepo;
+    private final InvoiceRepository       invoiceRepo;
 
+    // ── Dashboard ─────────────────────────────────────────────────────────
     public Map<String, Object> getDashboardStats() {
-        Map<String, Object> stats = new LinkedHashMap<>();
-        stats.put("totalDoctors",     doctorRepo.countByApprovalStatus(ApprovalStatus.APPROVED));
-        stats.put("pendingDoctors",   doctorRepo.countByApprovalStatus(ApprovalStatus.PENDING));
-        stats.put("pendingNurses",    nurseRepo.countByApprovalStatus(Nurse.ApprovalStatus.PENDING));
-        stats.put("totalPatients",    patientRepo.count());
-        stats.put("totalBranches",    branchRepo.count());
-        stats.put("totalDepartments", departmentRepo.countByIsActive(true));
-        stats.put("todayAppointments",appointmentRepo.countByAppointmentDate(LocalDate.now()));
-        stats.put("totalRevenue",     invoiceRepo.sumPaidAmount().orElse(java.math.BigDecimal.ZERO));
-        stats.put("pendingApprovals",
-            doctorRepo.findByApprovalStatus(ApprovalStatus.PENDING,
-                PageRequest.of(0,5)).getContent());
-        stats.put("recentPatients",
-            patientRepo.findAll(PageRequest.of(0,5,Sort.by("id").descending())).getContent());
+        Map<String, Object> stats = new HashMap<>();
+        stats.put("totalDoctors",      doctorRepo.count());
+        stats.put("totalPatients",     patientRepo.count());
+        stats.put("totalNurses",       nurseRepo.count());
+        stats.put("pendingDoctors",    doctorRepo.countByApprovalStatus("PENDING"));
+        stats.put("todayAppointments", apptRepo.countByAppointmentDate(LocalDate.now()));
+        stats.put("activeCalls",       0L);
+        stats.put("pendingBloodRequests", 0L);
+        stats.put("todayRevenue",      0L);
+
+        // recent patients (last 5)
+        var recentPts = patientRepo.findAll(PageRequest.of(0, 5, Sort.by(Sort.Direction.DESC, "createdAt")));
+        stats.put("recentPatients", recentPts.getContent());
         return stats;
     }
 
-    public Page<Doctor> getPendingDoctors(int page) {
-        return doctorRepo.findByApprovalStatus(ApprovalStatus.PENDING,
-            PageRequest.of(page,15,Sort.by("id").descending()));
-    }
-
-    public Page<Doctor> getAllDoctors(ApprovalStatus status, int page) {
-        if (status != null) return doctorRepo.findByApprovalStatus(status, PageRequest.of(page,20));
-        return doctorRepo.findAll(PageRequest.of(page,20,Sort.by("id").descending()));
+    // ── Doctors ───────────────────────────────────────────────────────────
+    public Page<Doctor> getAllDoctors(int page) {
+        return doctorRepo.findAll(PageRequest.of(page, 20, Sort.by("createdAt").descending()));
     }
 
     @Transactional
-    public void approveDoctor(Long doctorId, UserPrincipal admin) {
-        Doctor doctor = doctorRepo.findById(doctorId)
-            .orElseThrow(() -> new ResourceNotFoundException("Doctor","id",doctorId));
-        doctor.setApprovalStatus(ApprovalStatus.APPROVED);
-        doctor.setIsAvailable(true);
-        doctorRepo.save(doctor);
-        auditService.log(admin.getUsername(),"APPROVE","Doctor",doctorId,
-            "Doctor approved: "+doctor.getUser().getFullName());
-        notificationService.sendApprovalNotification(
-            doctor.getUser().getEmail(), doctor.getUser().getFullName(), "Doctor");
+    public void approveDoctor(Long doctorId) {
+        Doctor d = doctorRepo.findById(doctorId)
+            .orElseThrow(() -> new ResourceNotFoundException("Doctor not found"));
+        d.setApprovalStatus("APPROVED");
+        d.getUser().setApprovalStatus("APPROVED");
+        d.getUser().setEnabled(true);
+        doctorRepo.save(d);
     }
 
     @Transactional
-    public void rejectDoctor(Long doctorId, String reason, UserPrincipal admin) {
-        Doctor doctor = doctorRepo.findById(doctorId)
-            .orElseThrow(() -> new ResourceNotFoundException("Doctor","id",doctorId));
-        doctor.setApprovalStatus(ApprovalStatus.REJECTED);
-        doctorRepo.save(doctor);
-        auditService.log(admin.getUsername(),"REJECT","Doctor",doctorId,"Rejected: "+reason);
-        notificationService.sendRejectionNotification(
-            doctor.getUser().getEmail(), doctor.getUser().getFullName(), reason);
+    public void rejectDoctor(Long doctorId) {
+        Doctor d = doctorRepo.findById(doctorId)
+            .orElseThrow(() -> new ResourceNotFoundException("Doctor not found"));
+        d.setApprovalStatus("REJECTED");
+        d.getUser().setApprovalStatus("REJECTED");
+        doctorRepo.save(d);
     }
 
-    @Transactional
-    public void suspendDoctor(Long doctorId, String reason, UserPrincipal admin) {
-        Doctor doctor = doctorRepo.findById(doctorId)
-            .orElseThrow(() -> new ResourceNotFoundException("Doctor","id",doctorId));
-        doctor.setApprovalStatus(ApprovalStatus.SUSPENDED);
-        doctor.setIsAvailable(false);
-        doctorRepo.save(doctor);
-        auditService.log(admin.getUsername(),"SUSPEND","Doctor",doctorId,"Suspended: "+reason);
-    }
-
-    public Page<Nurse> getPendingNurses(int page) {
-        return nurseRepo.findByApprovalStatus(Nurse.ApprovalStatus.PENDING,
-            PageRequest.of(page,15,Sort.by("id").descending()));
-    }
-
-    @Transactional
-    public void approveNurse(Long nurseId, UserPrincipal admin) {
-        Nurse nurse = nurseRepo.findById(nurseId)
-            .orElseThrow(() -> new ResourceNotFoundException("Nurse","id",nurseId));
-        nurse.setApprovalStatus(Nurse.ApprovalStatus.APPROVED);
-        nurseRepo.save(nurse);
-        auditService.log(admin.getUsername(),"APPROVE","Nurse",nurseId,
-            "Nurse approved: "+nurse.getUser().getFullName());
-        notificationService.sendApprovalNotification(
-            nurse.getUser().getEmail(), nurse.getUser().getFullName(), "Nurse");
-    }
-
-    @Transactional
-    public void rejectNurse(Long nurseId, String reason, UserPrincipal admin) {
-        Nurse nurse = nurseRepo.findById(nurseId)
-            .orElseThrow(() -> new ResourceNotFoundException("Nurse","id",nurseId));
-        nurse.setApprovalStatus(Nurse.ApprovalStatus.REJECTED);
-        nurseRepo.save(nurse);
-        auditService.log(admin.getUsername(),"REJECT","Nurse",nurseId,"Rejected: "+reason);
-    }
-
-    public List<Department> getAllDepartments() {
-        return departmentRepo.findAll(Sort.by("name"));
-    }
-
-    @Transactional
-    public Department createDepartment(Department dept) { return departmentRepo.save(dept); }
-
-    public List<Specialization> getAllSpecializations() {
-        return specializationRepo.findAll(Sort.by("name"));
-    }
-
-    @Transactional
-    public Specialization createSpecialization(Specialization spec) {
-        return specializationRepo.save(spec);
-    }
-
-    public List<HospitalBranch> getAllBranches() { return branchRepo.findAll(Sort.by("name")); }
-
-    @Transactional
-    public HospitalBranch createBranch(HospitalBranch branch) { return branchRepo.save(branch); }
-
-    public Page<User> getAllUsers(int page) {
-        return userRepo.findAll(PageRequest.of(page,20,Sort.by("id").descending()));
-    }
-
-    @Transactional
-    public void toggleUserStatus(Long userId, UserPrincipal admin) {
-        User user = userRepo.findById(userId)
-            .orElseThrow(() -> new ResourceNotFoundException("User","id",userId));
-        user.setIsActive(!user.getIsActive());
-        userRepo.save(user);
-        auditService.log(admin.getUsername(),"UPDATE","User",userId,
-            "User "+(user.getIsActive()?"activated":"deactivated"));
-    }
-
+    // ── Patients ─────────────────────────────────────────────────────────
     public Page<Patient> getAllPatients(int page) {
-        return patientRepo.findAll(PageRequest.of(page,20,Sort.by("id").descending()));
+        return patientRepo.findAll(PageRequest.of(page, 20, Sort.by("createdAt").descending()));
     }
 
     public Page<Patient> searchPatients(String q, int page) {
-        return patientRepo.search(q, PageRequest.of(page,20));
+        return patientRepo.searchByKeyword(q, PageRequest.of(page, 20));
     }
 
+    // ── Departments ───────────────────────────────────────────────────────
+    public List<Department> getAllDepartments() {
+        return deptRepo.findAll();
+    }
+
+    @Transactional
+    public Department createDepartment(Department dept) {
+        // attach to default branch if not set
+        if (dept.getBranch() == null) {
+            branchRepo.findById(1L).ifPresent(dept::setBranch);
+        }
+        return deptRepo.save(dept);
+    }
+
+    public void deleteDepartment(Long id) {
+        deptRepo.deleteById(id);
+    }
+
+    // ── Specializations ────────────────────────────────────────────────────
+    public List<Specialization> getAllSpecializations() {
+        return specRepo.findAll();
+    }
+
+    // ── Branches ───────────────────────────────────────────────────────────
+    public List<HospitalBranch> getAllBranches() {
+        return branchRepo.findAll();
+    }
+
+    // ── Users ──────────────────────────────────────────────────────────────
+    public Page<User> getAllUsers(int page) {
+        return userRepo.findAll(PageRequest.of(page, 20, Sort.by("createdAt").descending()));
+    }
+
+    // ── Audit Logs ────────────────────────────────────────────────────────
     public Page<AuditLog> getAuditLogs(int page) {
-        return auditLogRepo.findAll(
-            PageRequest.of(page,50,Sort.by("createdAt").descending()));
+        return auditRepo.findAll(PageRequest.of(page, 20, Sort.by(Sort.Direction.DESC, "createdAt")));
     }
 
-    public Map<String,Object> getReports(String from, String to) {
-        Map<String,Object> report = new LinkedHashMap<>();
-        report.put("totalDoctors",   doctorRepo.count());
-        report.put("totalPatients",  patientRepo.count());
-        report.put("totalRevenue",   invoiceRepo.sumPaidAmount().orElse(java.math.BigDecimal.ZERO));
-        report.put("pendingInvoices",invoiceRepo.countByStatus(Invoice.PaymentStatus.PENDING));
-        report.put("totalBranches",  branchRepo.count());
+    // ── Reports ───────────────────────────────────────────────────────────
+    public Map<String, Object> getReports(String from, String to) {
+        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+        LocalDate fromDate = LocalDate.parse(from, fmt);
+        LocalDate toDate   = LocalDate.parse(to,   fmt);
+
+        Map<String, Object> report = new HashMap<>();
+        report.put("totalAppointments", apptRepo.countByAppointmentDateBetween(fromDate, toDate));
+        report.put("completedAppts",    apptRepo.countByStatusAndAppointmentDateBetween("COMPLETED", fromDate, toDate));
+        report.put("cancelledAppts",    apptRepo.countByStatusAndAppointmentDateBetween("CANCELLED", fromDate, toDate));
+        report.put("newPatients",       patientRepo.countByCreatedAtBetween(fromDate.atStartOfDay(), toDate.plusDays(1).atStartOfDay()));
+        report.put("activeDoctors",     doctorRepo.countByApprovalStatus("APPROVED"));
+        report.put("labOrders",         0L);
+        report.put("prescriptions",     0L);
+        report.put("totalRevenue",      0L);
         return report;
     }
 }

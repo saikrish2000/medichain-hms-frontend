@@ -2,22 +2,18 @@ package com.hospital.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
-
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-@Entity
-@Table(name = "doctors")
+@Entity @Table(name = "doctors")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class Doctor {
 
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", unique = true, nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false, unique = true)
     private User user;
 
     @Column(name = "license_number", unique = true, length = 100)
@@ -50,12 +46,25 @@ public class Doctor {
     @Column(columnDefinition = "TEXT")
     private String bio;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "approval_status")
-    private ApprovalStatus approvalStatus = ApprovalStatus.PENDING;
+    /** Stored as VARCHAR to match existing ENUM without migration pain */
+    @Column(name = "approval_status", length = 20)
+    private String approvalStatus = "PENDING";
 
     @Column(name = "rejection_reason", columnDefinition = "TEXT")
     private String rejectionReason;
+
+    @Column(name = "background_check_status", length = 20)
+    private String backgroundCheckStatus = "PENDING";
+
+    @Column(name = "background_check_notes", columnDefinition = "TEXT")
+    private String backgroundCheckNotes;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "approved_by")
+    private User approvedBy;
+
+    @Column(name = "approved_at")
+    private LocalDateTime approvedAt;
 
     @Column(precision = 3, scale = 2)
     private BigDecimal rating = BigDecimal.ZERO;
@@ -66,14 +75,21 @@ public class Doctor {
     @Column(name = "is_available")
     private Boolean isAvailable = true;
 
-    @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
-    @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    public enum ApprovalStatus    { PENDING, APPROVED, REJECTED, SUSPENDED }
-    public enum BackgroundCheckStatus { PENDING, PASSED, FAILED }
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+        updatedAt  = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    protected void onUpdate() { updatedAt = LocalDateTime.now(); }
+
+    // Convenience alias used by some services
+    public Integer getExperience() { return experienceYears; }
 }

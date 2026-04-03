@@ -2,15 +2,11 @@ package com.hospital.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
-
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
-@Entity
-@Table(name = "lab_orders")
+@Entity @Table(name = "lab_orders")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class LabOrder {
 
@@ -21,25 +17,24 @@ public class LabOrder {
     private String orderNumber;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "patient_id", nullable = false)
+    @JoinColumn(name = "patient_id")
     private Patient patient;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "doctor_id", nullable = false)
+    @JoinColumn(name = "doctor_id")
     private Doctor doctor;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "appointment_id")
     private Appointment appointment;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private OrderStatus status = OrderStatus.ORDERED;
+    @Column(name = "status", length = 30)
+    private String status = "ORDERED";
 
-    @ManyToMany
+    @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(name = "lab_order_tests",
-        joinColumns = @JoinColumn(name = "order_id"),
-        inverseJoinColumns = @JoinColumn(name = "test_id"))
+        joinColumns = @JoinColumn(name = "lab_order_id"),
+        inverseJoinColumns = @JoinColumn(name = "lab_test_id"))
     @Builder.Default
     private List<LabTest> tests = new ArrayList<>();
 
@@ -55,21 +50,26 @@ public class LabOrder {
     @Column(name = "completed_at")
     private LocalDateTime completedAt;
 
+    @OneToMany(mappedBy = "labOrder", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @Builder.Default
+    private List<LabResult> results = new ArrayList<>();
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "collected_by")
     private User collectedBy;
 
-    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
-    @Builder.Default
-    private List<LabResult> results = new ArrayList<>();
-
-    @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
-    @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    public enum OrderStatus { ORDERED, SAMPLE_COLLECTED, PROCESSING, COMPLETED, CANCELLED }
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+        updatedAt  = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    protected void onUpdate() { updatedAt = LocalDateTime.now(); }
 }

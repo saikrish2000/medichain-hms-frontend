@@ -1,9 +1,10 @@
 package com.hospital.repository;
 
 import com.hospital.entity.Appointment;
-import com.hospital.entity.Appointment.AppointmentStatus;
-import org.springframework.data.domain.*;
-import org.springframework.data.jpa.repository.*;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
@@ -13,23 +14,27 @@ import java.util.List;
 @Repository
 public interface AppointmentRepository extends JpaRepository<Appointment, Long> {
 
-    Page<Appointment> findByDoctorIdAndStatus(Long doctorId, AppointmentStatus status, Pageable pageable);
+    // By doctor
     Page<Appointment> findByDoctorId(Long doctorId, Pageable pageable);
+    List<Appointment> findByDoctorIdAndAppointmentDate(Long doctorId, LocalDate date);
+
+    // By patient
     Page<Appointment> findByPatientId(Long patientId, Pageable pageable);
+    List<Appointment> findByPatientIdAndStatusIn(Long patientId, List<String> statuses);
 
-    List<Appointment> findByDoctorIdAndAppointmentDateOrderByAppointmentTime(Long doctorId, LocalDate date);
-    List<Appointment> findByAppointmentDateOrderByAppointmentTime(LocalDate date);
-    Page<Appointment> findByAppointmentDate(LocalDate date, Pageable pageable);
+    // By slot
+    List<Appointment> findBySlotId(Long slotId);
 
-    long countByDoctorIdAndAppointmentDate(Long doctorId, LocalDate date);
-    long countByDoctorIdAndStatus(Long doctorId, AppointmentStatus status);
+    // Counts
     long countByAppointmentDate(LocalDate date);
-    long countByAppointmentDateAndStatus(LocalDate date, AppointmentStatus status);
+    long countByAppointmentDateBetween(LocalDate from, LocalDate to);
+    long countByStatusAndAppointmentDateBetween(String status, LocalDate from, LocalDate to);
 
-    @Query("SELECT COUNT(DISTINCT a.patient.id) FROM Appointment a WHERE a.doctor.id = :doctorId")
-    long countDistinctPatientsByDoctorId(@Param("doctorId") Long doctorId);
+    // Date range
+    @Query("SELECT a FROM Appointment a WHERE a.appointmentDate BETWEEN :from AND :to ORDER BY a.appointmentDate ASC, a.appointmentTime ASC")
+    Page<Appointment> findByDateRange(@Param("from") LocalDate from, @Param("to") LocalDate to, Pageable pageable);
 
-    @Query("SELECT a FROM Appointment a WHERE a.patient.id = :patientId " +
-           "AND a.appointmentDate >= CURRENT_DATE ORDER BY a.appointmentDate ASC")
-    List<Appointment> findNextAppointments(@Param("patientId") Long patientId, Pageable pageable);
+    // Receptionist — filter by date
+    Page<Appointment> findByAppointmentDate(LocalDate date, Pageable pageable);
+    List<Appointment> findByAppointmentDateOrderByAppointmentTimeAsc(LocalDate date);
 }

@@ -4,23 +4,13 @@ import com.hospital.enums.BloodGroup;
 import com.hospital.enums.Role;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
+import java.time.*;
 
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-
-@Entity
-@Table(name = "users")
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
+@Entity @Table(name = "users")
+@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class User {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @Column(unique = true, nullable = false, length = 50)
@@ -33,7 +23,7 @@ public class User {
     private String password;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, length = 30)
     private Role role;
 
     @Column(name = "first_name", nullable = false, length = 100)
@@ -49,10 +39,11 @@ public class User {
     private LocalDate dateOfBirth;
 
     @Enumerated(EnumType.STRING)
+    @Column(length = 10)
     private Gender gender;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "blood_group")
+    @Column(name = "blood_group", length = 15)
     private BloodGroup bloodGroup;
 
     @Column(name = "profile_photo_url", length = 500)
@@ -68,6 +59,9 @@ public class User {
     @Column(name = "is_active")
     private Boolean isActive = true;
 
+    @Column(name = "enabled")
+    private Boolean enabled = true;
+
     @Column(name = "is_verified")
     private Boolean isVerified = false;
 
@@ -77,32 +71,39 @@ public class User {
     @Column(name = "phone_verified")
     private Boolean phoneVerified = false;
 
+    @Column(name = "approval_status", length = 20)
+    private String approvalStatus = "APPROVED";
+
     @Column(name = "last_login")
     private LocalDateTime lastLogin;
 
-    @Column(name = "password_reset_token")
+    @Column(name = "password_reset_token", length = 255)
     private String passwordResetToken;
 
     @Column(name = "password_reset_expiry")
     private LocalDateTime passwordResetExpiry;
 
-    @Column(name = "email_verification_token")
+    @Column(name = "email_verification_token", length = 255)
     private String emailVerificationToken;
 
-    @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
-    @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    // Helper method
-    public String getFullName() {
-        return firstName + " " + lastName;
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+        updatedAt  = LocalDateTime.now();
+        if (enabled == null) enabled = true;
+        if (isActive == null) isActive = true;
     }
 
-    public enum Gender {
-        MALE, FEMALE, OTHER
-    }
+    @PreUpdate
+    protected void onUpdate() { updatedAt = LocalDateTime.now(); }
+
+    public String getFullName() { return firstName + " " + lastName; }
+
+    public enum Gender { MALE, FEMALE, OTHER }
 }

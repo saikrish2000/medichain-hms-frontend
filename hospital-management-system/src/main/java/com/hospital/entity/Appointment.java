@@ -2,16 +2,10 @@ package com.hospital.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
-
 import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
+import java.time.*;
 
-@Entity
-@Table(name = "appointments")
+@Entity @Table(name = "appointments")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class Appointment {
 
@@ -50,14 +44,18 @@ public class Appointment {
     @Column(name = "duration_minutes")
     private Integer durationMinutes = 30;
 
-    @Enumerated(EnumType.STRING)
-    private AppointmentType type = AppointmentType.IN_PERSON;
+    // stored as VARCHAR to avoid enum migration pain
+    @Column(name = "type", length = 30)
+    private String type = "IN_PERSON";
 
-    @Enumerated(EnumType.STRING)
-    private AppointmentStatus status = AppointmentStatus.PENDING;
+    @Column(name = "status", length = 20)
+    private String status = "PENDING";
 
     @Column(name = "reason_for_visit", columnDefinition = "TEXT")
     private String reasonForVisit;
+
+    /** alias used by frontend (reason field) */
+    public String getReason() { return reasonForVisit; }
 
     @Column(name = "symptoms", columnDefinition = "TEXT")
     private String symptoms;
@@ -71,6 +69,9 @@ public class Appointment {
     @Column(name = "rejection_reason", length = 500)
     private String rejectionReason;
 
+    @Column(name = "cancellation_reason", length = 500)
+    private String cancellationReason;
+
     @Column(name = "consultation_fee", precision = 10, scale = 2)
     private BigDecimal consultationFee;
 
@@ -80,8 +81,14 @@ public class Appointment {
     @Column(name = "payment_id", length = 100)
     private String paymentId;
 
+    @Column(name = "payment_status", length = 20)
+    private String paymentStatus = "PENDING";
+
     @Column(name = "is_emergency")
     private Boolean isEmergency = false;
+
+    @Column(name = "is_first_visit")
+    private Boolean isFirstVisit = true;
 
     @Column(name = "follow_up_date")
     private LocalDate followUpDate;
@@ -92,23 +99,25 @@ public class Appointment {
     @Column(name = "completed_at")
     private LocalDateTime completedAt;
 
+    @Column(name = "reminder_sent")
+    private Boolean reminderSent = false;
+
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "approved_by")
-    private User approvedBy;
+    @JoinColumn(name = "cancelled_by")
+    private User cancelledBy;
 
-    @Column(name = "approved_at")
-    private LocalDateTime approvedAt;
-
-    @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
-    @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    public enum AppointmentType   { IN_PERSON, ONLINE }
-    public enum AppointmentStatus {
-        PENDING, CONFIRMED, REJECTED, CANCELLED, COMPLETED, NO_SHOW, IN_PROGRESS
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+        updatedAt  = LocalDateTime.now();
     }
+
+    @PreUpdate
+    protected void onUpdate() { updatedAt = LocalDateTime.now(); }
 }

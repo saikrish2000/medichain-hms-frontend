@@ -2,15 +2,9 @@ package com.hospital.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
+import java.time.*;
 
-import java.time.DayOfWeek;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
-
-@Entity
-@Table(name = "doctor_slots")
+@Entity @Table(name = "doctor_slots")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class DoctorSlot {
 
@@ -24,9 +18,9 @@ public class DoctorSlot {
     @Column(name = "slot_date")
     private LocalDate slotDate;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "day_of_week")
-    private DayOfWeek dayOfWeek;
+    // stored as VARCHAR — day name (MONDAY etc.)
+    @Column(name = "day_of_week", length = 10)
+    private String dayOfWeek;
 
     @Column(name = "start_time", nullable = false)
     private LocalTime startTime;
@@ -39,6 +33,10 @@ public class DoctorSlot {
 
     @Column(name = "max_patients")
     private Integer maxPatients = 1;
+
+    /** booked_count in DB — keep both mapped */
+    @Column(name = "booked_count")
+    private Integer bookedCount = 0;
 
     @Column(name = "current_patients")
     private Integer currentPatients = 0;
@@ -55,7 +53,28 @@ public class DoctorSlot {
     @Column(name = "is_active")
     private Boolean isActive = true;
 
-    @CreationTimestamp
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "branch_id")
+    private HospitalBranch branch;
+
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
+
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now();
+        if (bookedCount == null) bookedCount = 0;
+        if (currentPatients == null) currentPatients = 0;
+    }
+
+    @PreUpdate
+    protected void onUpdate() { updatedAt = LocalDateTime.now(); }
+
+    // Convenience alias
+    public Integer getDate() { return slotDate != null ? slotDate.getDayOfMonth() : null; }
+    public LocalDate getDate2() { return slotDate; }
 }

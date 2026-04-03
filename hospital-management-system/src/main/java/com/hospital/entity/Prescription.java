@@ -2,15 +2,12 @@ package com.hospital.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
-@Entity
-@Table(name = "prescriptions")
+@Entity @Table(name = "prescriptions")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class Prescription {
 
@@ -18,11 +15,11 @@ public class Prescription {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "patient_id", nullable = false)
+    @JoinColumn(name = "patient_id")
     private Patient patient;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "doctor_id", nullable = false)
+    @JoinColumn(name = "doctor_id")
     private Doctor doctor;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -35,11 +32,10 @@ public class Prescription {
     @Column(name = "valid_until")
     private LocalDate validUntil;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private Status status = Status.PENDING;
+    @Column(name = "status", length = 20)
+    private String status = "PENDING";
 
-    @Column(columnDefinition = "TEXT")
+    @Column(name = "notes", columnDefinition = "TEXT")
     private String notes;
 
     @Column(name = "diagnosis_notes", columnDefinition = "TEXT")
@@ -51,13 +47,23 @@ public class Prescription {
     @Column(name = "dispensed_at")
     private LocalDateTime dispensedAt;
 
-    @OneToMany(mappedBy = "prescription", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "prescription", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @Builder.Default
     private List<PrescriptionItem> items = new ArrayList<>();
 
-    @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
-    public enum Status { PENDING, DISPENSED, EXPIRED, CANCELLED }
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+        updatedAt  = LocalDateTime.now();
+        if (prescriptionDate == null) prescriptionDate = LocalDate.now();
+    }
+
+    @PreUpdate
+    protected void onUpdate() { updatedAt = LocalDateTime.now(); }
 }

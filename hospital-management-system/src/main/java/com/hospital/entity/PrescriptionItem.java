@@ -3,8 +3,7 @@ package com.hospital.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
-@Entity
-@Table(name = "prescription_items")
+@Entity @Table(name = "prescription_items")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class PrescriptionItem {
 
@@ -12,24 +11,28 @@ public class PrescriptionItem {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "prescription_id", nullable = false)
+    @JoinColumn(name = "prescription_id")
     private Prescription prescription;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "medicine_id", nullable = false)
+    @JoinColumn(name = "medicine_id")
     private Medicine medicine;
 
-    @Column(length = 100)
+    @Column(name = "medicine_name", length = 200)
+    private String medicineName;
+
+    @Column(name = "dosage", length = 100)
     private String dosage;
 
-    @Column(length = 100)
+    @Column(name = "frequency", length = 100)
     private String frequency;
 
-    @Column(length = 100)
+    @Column(name = "duration", length = 100)
     private String duration;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(name = "instructions", columnDefinition = "TEXT")
     private String instructions;
 
+    @Column(name = "quantity")
     private Integer quantity;
 }
