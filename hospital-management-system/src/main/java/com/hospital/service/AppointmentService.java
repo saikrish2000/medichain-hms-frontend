@@ -135,13 +135,11 @@ public class AppointmentService {
     }
 
     public List<Appointment> getTodayAppointments(Long doctorId) {
-        return appointmentRepo.findByDoctorIdAndAppointmentDateOrderByAppointmentTime(
-            doctorId, java.time.LocalDate.now());
+        return appointmentRepo.findByDoctorIdAndAppointmentDate(doctorId, java.time.LocalDate.now());
     }
 
     public Appointment getNextAppointment(Long patientId) {
-        List<Appointment> list = appointmentRepo.findNextAppointments(
-            patientId, PageRequest.of(0,1));
+        List<Appointment> list = appointmentRepo.findByPatientIdAndStatusIn(patientId, java.util.List.of("PENDING","CONFIRMED"));
         return list.isEmpty() ? null : list.get(0);
     }
 

@@ -47,15 +47,14 @@ public class PatientService {
         Long pid = patient.getId();
         Map<String,Object> stats = new LinkedHashMap<>();
         stats.put("patient", patient);
-        stats.put("upcomingAppointments", appointmentRepo.findNextAppointments(pid, PageRequest.of(0,3)));
+        stats.put("upcomingAppointments", appointmentRepo.findByPatientIdAndStatusIn(pid, java.util.List.of("PENDING","CONFIRMED")));
         stats.put("pendingBills",        invoiceRepo.countByPatientIdAndStatus(pid, "PENDING"));
-        stats.put("totalVisits",         medRecordRepo.countByPatientId(pid));
-        stats.put("recentRecords",       medRecordRepo.findByPatientIdOrderByVisitDateDesc(pid, PageRequest.of(0,3)).getContent());
+        stats.put("totalVisits",         medRecordRepo.findByPatientId(pid, org.springframework.data.domain.Pageable.unpaged()).getTotalElements());
+        stats.put("recentRecords",       medRecordRepo.findByPatientIdOrderByRecordDateDesc(pid).stream().limit(3).toList());
         return stats;
     }
 
     public List<MedicalRecord> getVitals(Long patientId) {
-        return medRecordRepo.findByPatientIdOrderByVisitDateDesc(
-            patientId, PageRequest.of(0,10)).getContent();
+        return medRecordRepo.findByPatientIdOrderByRecordDateDesc(patientId).stream().limit(10).toList();
     }
 }

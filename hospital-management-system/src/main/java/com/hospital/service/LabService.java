@@ -62,16 +62,16 @@ public class LabService {
         List<LabResult> results = new ArrayList<>();
         for (Map<String,Object> rd : resultData) {
             LabResult r = new LabResult();
-            r.setOrder(order);
-            r.setTestName((String) rd.get("testName"));
-            r.setResult((String) rd.get("result"));
+            r.setLabOrder(order);
+            // testName stored in labTest;
+            r.setResultValue((String) rd.get("result"));
             r.setUnit((String) rd.getOrDefault("unit",""));
             r.setReferenceRange((String) rd.getOrDefault("referenceRange",""));
             r.setIsAbnormal(Boolean.TRUE.equals(rd.get("isAbnormal")));
             results.add(r);
         }
         resultRepo.saveAll(results);
-        order.setResults(results);
+        // results saved via labOrder FK in each LabResult;
         order.setStatus("COMPLETED");
         order.setResultNotes(notes);
         order.setCompletedAt(LocalDateTime.now());

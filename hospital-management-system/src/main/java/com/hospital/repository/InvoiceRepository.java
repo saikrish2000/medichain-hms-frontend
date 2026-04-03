@@ -16,4 +16,7 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
     Page<Invoice> findByStatus(String status, Pageable pageable);
     long countByStatus(String status);
     long countByPatientIdAndStatus(Long patientId, String status);
+
+    @org.springframework.data.jpa.repository.Query("SELECT SUM(i.amountPaid) FROM Invoice i WHERE i.status = 'PAID'")
+    java.util.Optional<java.math.BigDecimal> sumPaidAmount();
 }

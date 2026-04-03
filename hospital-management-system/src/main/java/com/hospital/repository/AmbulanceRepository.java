@@ -11,4 +11,5 @@ public interface AmbulanceRepository extends JpaRepository<Ambulance, Long> {
     List<Ambulance> findByStatus(String status);
     List<Ambulance> findByBranchId(Long branchId);
     List<Ambulance> findByIsActiveTrue();
+    long countByStatus(String status);
 }

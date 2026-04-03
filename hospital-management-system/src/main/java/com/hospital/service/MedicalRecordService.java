@@ -8,6 +8,8 @@ import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 public class MedicalRecordService {
@@ -17,27 +19,31 @@ public class MedicalRecordService {
     private final DoctorRepository        doctorRepo;
 
     public Page<MedicalRecord> getPatientRecords(Long patientId, int page) {
-        return recordRepo.findByPatientIdOrderByVisitDateDesc(patientId, PageRequest.of(page, 15));
+        return recordRepo.findByPatientId(patientId, PageRequest.of(page, 15, Sort.by("recordDate").descending()));
+    }
+
+    public List<MedicalRecord> getPatientRecordsList(Long userId) {
+        Patient patient = patientRepo.findByUserId(userId)
+            .orElseThrow(() -> new ResourceNotFoundException("Patient", "userId", userId));
+        return recordRepo.findByPatientIdOrderByRecordDateDesc(patient.getId());
+    }
+
+    public List<MedicalRecord> getPatientVitals(Long userId) {
+        return getPatientRecordsList(userId).stream().limit(10).toList();
     }
 
     @Transactional
     public MedicalRecord addRecord(MedicalRecord data, Long doctorUserId) {
         Doctor doctor = doctorRepo.findByUserId(doctorUserId)
-            .orElseThrow(() -> new ResourceNotFoundException("Doctor","userId",doctorUserId));
+            .orElseThrow(() -> new ResourceNotFoundException("Doctor", "userId", doctorUserId));
         data.setDoctor(doctor);
-        if (data.getVisitDate() == null)
-            data.setVisitDate(java.time.LocalDate.now());
+        if (data.getRecordDate() == null)
+            data.setRecordDate(java.time.LocalDate.now());
         return recordRepo.save(data);
     }
+
+    public MedicalRecord getById(Long id) {
+        return recordRepo.findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("MedicalRecord", "id", id));
+    }
 }
-
-    public java.util.List<MedicalRecord> getPatientRecords(Long userId) {
-        var patient = patientRepo.findByUserId(userId)
-            .orElseThrow(() -> new com.hospital.exception.ResourceNotFoundException("Patient not found"));
-        return recordRepo.findByPatientIdOrderByCreatedAtDesc(patient.getId(),
-            org.springframework.data.domain.PageRequest.of(0,50)).getContent();
-    }
-
-    public java.util.List<MedicalRecord> getPatientVitals(Long userId) {
-        return getPatientRecords(userId);
-    }

@@ -13,4 +13,5 @@ public interface AmbulanceCallRepository extends JpaRepository<AmbulanceCall, Lo
     Page<AmbulanceCall> findByStatus(String status, Pageable pageable);
     List<AmbulanceCall> findByAmbulanceIdAndStatusIn(Long ambulanceId, List<String> statuses);
     List<AmbulanceCall> findByStatus(String status);
+    long countByStatus(String status);
 }

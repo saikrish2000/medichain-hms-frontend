@@ -56,7 +56,7 @@ public class BillingService {
     }
 
     @Transactional
-    public Invoice markAsPaid(Long invoiceId, Invoice.PaymentMethod method, String transactionId) {
+    public Invoice markAsPaid(Long invoiceId, String method, String transactionId) {
         Invoice invoice = invoiceRepo.findById(invoiceId)
             .orElseThrow(() -> new ResourceNotFoundException("Invoice","id",invoiceId));
         if (invoice.getStatus().equals("PAID"))
@@ -79,7 +79,7 @@ public class BillingService {
     }
 
     public Page<Invoice> getPatientInvoices(Long patientId, int page) {
-        return invoiceRepo.findByPatientIdOrderByCreatedAtDesc(patientId, PageRequest.of(page, 15));
+        return invoiceRepo.findByPatientId(patientId, PageRequest.of(page, 15, Sort.by("createdAt").descending()));
     }
 
     public Page<Invoice> getMyBills(Long userId, int page) {

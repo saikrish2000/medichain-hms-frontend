@@ -25,8 +25,8 @@ public class AmbulanceService {
     @Transactional
     public void updateLocation(Long id, Double lat, Double lng) {
         ambulanceRepo.findById(id).ifPresent(a -> {
-            a.setCurrentLatitude(lat);
-            a.setCurrentLongitude(lng);
+            a.setCurrentLatitude(lat != null ? java.math.BigDecimal.valueOf(lat) : null);
+            a.setCurrentLongitude(lng != null ? java.math.BigDecimal.valueOf(lng) : null);
             a.setLastLocationUpdate(LocalDateTime.now());
             ambulanceRepo.save(a);
         });
@@ -41,11 +41,11 @@ public class AmbulanceService {
         call.setCallerPhone(callerPhone);
         call.setPickupAddress(pickupAddress);
         call.setEmergencyType(emergencyType);
-        call.setRequestTime(LocalDateTime.now());
-        call.setStatus(CallStatus.REQUESTED);
+        call.setCreatedAt(LocalDateTime.now());
+        call.setStatus("PENDING");
         if (!available.isEmpty()) {
             Ambulance amb = available.get(0);
-            amb.setStatus(AmbulanceStatus.DISPATCHED);
+            amb.setStatus("DISPATCHED");
             ambulanceRepo.save(amb);
             call.setAmbulance(amb);
             call.setStatus("DISPATCHED");
@@ -55,12 +55,12 @@ public class AmbulanceService {
     }
 
     @Transactional
-    public AmbulanceCall updateCallStatus(Long callId, CallStatus newStatus) {
+    public AmbulanceCall updateCallStatus(Long callId, String newStatus) {
         AmbulanceCall call = callRepo.findById(callId)
             .orElseThrow(() -> new ResourceNotFoundException("AmbulanceCall","id",callId));
         call.setStatus(newStatus);
-        if (newStatus == CallStatus.AT_SCENE)  call.setArrivedAt(LocalDateTime.now());
-        if (newStatus == "COMPLETED") {
+        if ("AT_SCENE".equals(newStatus))  call.setArrivedAt(LocalDateTime.now());
+        if ("COMPLETED".equals(newStatus)) {
             call.setCompletedAt(LocalDateTime.now());
             if (call.getAmbulance() != null) {
                 call.getAmbulance().setStatus("AVAILABLE");
@@ -71,17 +71,17 @@ public class AmbulanceService {
     }
 
     public Page<AmbulanceCall> getAllCalls(int page) {
-        return callRepo.findAllByOrderByRequestTimeDesc(PageRequest.of(page, 20));
+        return callRepo.findAll(PageRequest.of(page, 20, Sort.by(Sort.Direction.DESC, "createdAt")));
     }
 
     public Map<String,Object> getDashboardStats() {
         Map<String,Object> stats = new LinkedHashMap<>();
         stats.put("totalAmbulances", ambulanceRepo.count());
         stats.put("available",       ambulanceRepo.countByStatus("AVAILABLE"));
-        stats.put("dispatched",      ambulanceRepo.countByStatus(AmbulanceStatus.DISPATCHED));
+        stats.put("dispatched",      ambulanceRepo.countByStatus("DISPATCHED"));
         stats.put("activeCalls",     callRepo.countByStatus("DISPATCHED") +
-                                     callRepo.countByStatus(CallStatus.ON_ROUTE));
-        stats.put("recentCalls",     callRepo.findAllByOrderByRequestTimeDesc(PageRequest.of(0,5)).getContent());
+                                     callRepo.countByStatus("ON_ROUTE"));
+        stats.put("recentCalls",     callRepo.findAll(PageRequest.of(0, 5, Sort.by(Sort.Direction.DESC, "createdAt"))).getContent());
         return stats;
     }
 }
