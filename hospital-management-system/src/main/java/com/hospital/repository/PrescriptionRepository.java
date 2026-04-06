@@ -14,4 +14,5 @@ public interface PrescriptionRepository extends JpaRepository<Prescription, Long
     Page<Prescription> findByDoctorId(Long doctorId, Pageable pageable);
     List<Prescription> findByPatientIdAndStatus(Long patientId, String status);
     long countByStatus(String status);
+    Page<Prescription> findByStatus(String status, Pageable pageable);
 }

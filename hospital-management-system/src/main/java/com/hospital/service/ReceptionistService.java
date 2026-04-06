@@ -23,13 +23,13 @@ public class ReceptionistService {
     public Appointment checkIn(Long appointmentId) {
         Appointment appt = appointmentRepo.findById(appointmentId)
             .orElseThrow(() -> new ResourceNotFoundException("Appointment","id",appointmentId));
-        appt.setStatus(Appointment."IN_PROGRESS");
+        appt.setStatus("IN_PROGRESS");
         appt.setCheckedInAt(LocalDateTime.now());
         return appointmentRepo.save(appt);
     }
 
     public List<Appointment> getTodayAppointments() {
-        return appointmentRepo.findByAppointmentDateOrderByAppointmentTime(LocalDate.now());
+        return appointmentRepo.findByAppointmentDateOrderByAppointmentTimeAsc(LocalDate.now());
     }
 
     public Page<Appointment> getAppointmentsByDate(LocalDate date, int page) {
@@ -37,14 +37,14 @@ public class ReceptionistService {
     }
 
     public List<Patient> searchPatients(String q) {
-        return patientRepo.search(q, PageRequest.of(0, 10)).getContent();
+        return patientRepo.searchByKeyword(q, PageRequest.of(0, 10)).getContent();
     }
 
     public Map<String,Object> getDashboardStats() {
         Map<String,Object> s = new LinkedHashMap<>();
         s.put("todayAppointments",    appointmentRepo.countByAppointmentDate(LocalDate.now()));
-        s.put("checkedIn",            appointmentRepo.countByAppointmentDateAndStatus(LocalDate.now(), Appointment."IN_PROGRESS"));
-        s.put("pendingToday",         appointmentRepo.countByAppointmentDateAndStatus(LocalDate.now(), Appointment."PENDING"));
+        s.put("checkedIn",            appointmentRepo.countByAppointmentDateAndStatus(LocalDate.now(), "IN_PROGRESS"));
+        s.put("pendingToday",         appointmentRepo.countByAppointmentDateAndStatus(LocalDate.now(), "PENDING"));
         s.put("upcomingAppointments", getTodayAppointments());
         return s;
     }

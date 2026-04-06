@@ -1,6 +1,5 @@
 package com.hospital.controller;
 
-import com.hospital.entity.Invoice;
 import com.hospital.service.BillingService;
 import com.hospital.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
@@ -46,8 +45,7 @@ public class BillingController {
     @PostMapping("/invoices/{id}/pay")
     public ResponseEntity<?> markPaid(@PathVariable Long id,
                                        @RequestBody Map<String,String> body) {
-        Invoice.PaymentMethod method = Invoice.PaymentMethod.valueOf(
-            body.getOrDefault("paymentMethod","CASH").toUpperCase());
+        String method = body.getOrDefault("paymentMethod", "CASH").toUpperCase();
         return ResponseEntity.ok(billingService.markAsPaid(id, method, body.get("transactionId")));
     }
 

@@ -47,7 +47,7 @@ public class AmbulanceController {
     @PatchMapping("/calls/{id}/status")
     public ResponseEntity<?> updateCallStatus(@PathVariable Long id,
                                                @RequestBody Map<String,String> body) {
-        AmbulanceCall.CallStatus status = valueOf(body.get("status").toUpperCase());
+        String status = body.get("status").toUpperCase();
         return ResponseEntity.ok(ambulanceService.updateCallStatus(id, status));
     }
 

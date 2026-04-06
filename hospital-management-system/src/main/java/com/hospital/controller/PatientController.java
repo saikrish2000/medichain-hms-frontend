@@ -43,7 +43,7 @@ public class PatientController {
 
     @GetMapping("/records")
     public ResponseEntity<List<MedicalRecord>> myRecords(@AuthenticationPrincipal UserPrincipal me) {
-        return ResponseEntity.ok(medicalRecordService.getPatientRecords(me.getId()));
+        return ResponseEntity.ok(medicalRecordService.getPatientRecordsList(me.getId()));
     }
 
     @GetMapping("/vitals")

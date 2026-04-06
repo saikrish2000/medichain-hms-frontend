@@ -37,14 +37,14 @@ public class DoctorService {
         stats.put("doctor", doctor);
         stats.put("todayAppointments",     appointmentRepo.countByDoctorIdAndAppointmentDate(docId, LocalDate.now()));
         stats.put("pendingAppointments",   appointmentRepo.countByDoctorIdAndStatus(docId, "PENDING"));
-        stats.put("totalPatients",         patientRepo.findPatientsByDoctorId(docId, PageRequest.of(0, 1)).getTotalElements());
+        stats.put("totalPatients",         (long) appointmentRepo.findByDoctorId(docId, org.springframework.data.domain.PageRequest.of(0, 1)).getTotalElements());
         stats.put("todaySchedule",         appointmentRepo.findByDoctorIdAndAppointmentDate(docId, LocalDate.now()));
         return stats;
     }
 
     public Page<Patient> getDoctorPatients(Long userId, int page) {
         Long docId = getDoctorIdByUserId(userId);
-        return patientRepo.findPatientsByDoctorId(docId, PageRequest.of(page, 15, Sort.by("id").descending()));
+        return patientRepo.findPatientsByDoctorId(getDoctorIdByUserId(userId), PageRequest.of(page, 15, Sort.by("id").descending()));
     }
 
     public List<Doctor> getAvailableDoctors(Long specializationId, Long branchId) {
