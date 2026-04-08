@@ -10,4 +10,5 @@ import org.springframework.stereotype.Repository;
 public interface BloodRequestRepository extends JpaRepository<BloodRequest, Long> {
     Page<BloodRequest> findByStatus(String status, Pageable pageable);
     Page<BloodRequest> findByPatientId(Long patientId, Pageable pageable);
+    long countByStatus(String status);
 }
