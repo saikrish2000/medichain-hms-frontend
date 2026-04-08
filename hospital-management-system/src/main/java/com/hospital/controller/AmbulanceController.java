@@ -1,12 +1,19 @@
 package com.hospital.controller;
 
 import com.hospital.entity.Ambulance;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import com.hospital.entity.AmbulanceCall;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import com.hospital.service.AmbulanceService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.*;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.Map;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
 @RestController
 @RequestMapping("/api/ambulance")

@@ -1,45 +1,32 @@
-# =============================================
-# MediChain HMS — .gitignore
-# =============================================
-
-# ── Maven build output ──
+# Maven
 target/
+*.class
 *.jar
 *.war
 *.ear
-!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
 
-# ── Application secrets (NEVER commit these) ──
-src/main/resources/application-local.properties
-src/main/resources/application-prod.properties
-src/main/resources/application-staging.properties
-.env
-.env.*
-
-# ── Uploaded files (user data) ──
-uploads/
-logs/
-
-# ── IDE files ──
+# IDE
 .idea/
 *.iml
-*.iws
-*.ipr
-.vscode/
-*.swp
-*.swo
+.eclipse
+.classpath
+.project
+.settings/
+
+# Logs
+*.log
+logs/
+
+# Environment
+.env
+*.env.local
+
+# OS
 .DS_Store
 Thumbs.db
 
-# ── Compiled classes ──
-*.class
-
-# ── Spring Boot DevTools restart ──
-.spring-boot-devtools.properties
-
-# ── Test reports ──
-surefire-reports/
-**/test-output/
-
-# ── Docker local overrides ──
-docker-compose.override.yml
+# Frontend (separate repo)
+frontend/node_modules/
+frontend/dist/

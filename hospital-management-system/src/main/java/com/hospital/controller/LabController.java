@@ -1,14 +1,23 @@
 package com.hospital.controller;
 
 import com.hospital.entity.LabTest;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import com.hospital.service.LabService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import com.hospital.security.UserPrincipal;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.*;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.List;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.Map;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
 @RestController
 @RequestMapping("/api/lab")

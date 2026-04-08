@@ -29,49 +29,64 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtFilter;
     private final UserDetailsService userDetailsService;
 
+    /** Swagger / SpringDoc paths that must be publicly accessible */
+    private static final String[] SWAGGER_PATHS = {
+        "/swagger-ui.html",
+        "/swagger-ui/**",
+        "/v3/api-docs",
+        "/v3/api-docs/**",
+        "/swagger-resources",
+        "/swagger-resources/**",
+        "/webjars/**"
+    };
+
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
             .csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                // ── Public endpoints ──────────────────────────────
+
+                // ── Swagger / OpenAPI (always public) ─────────────────────
+                .requestMatchers(SWAGGER_PATHS).permitAll()
+
+                // ── Auth (public) ─────────────────────────────────────────
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers("/actuator/health").permitAll()
 
-                // ── Admin ─────────────────────────────────────────
+                // ── Admin ─────────────────────────────────────────────────
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
 
-                // ── Doctor ────────────────────────────────────────
+                // ── Doctor ────────────────────────────────────────────────
                 .requestMatchers("/api/doctor/**").hasRole("DOCTOR")
 
-                // ── Nurse ─────────────────────────────────────────
+                // ── Nurse ─────────────────────────────────────────────────
                 .requestMatchers("/api/nurse/**").hasRole("NURSE")
 
-                // ── Patient ───────────────────────────────────────
+                // ── Patient ───────────────────────────────────────────────
                 .requestMatchers("/api/patient/**").hasRole("PATIENT")
 
-                // ── Pharmacy ──────────────────────────────────────
-                .requestMatchers("/api/pharmacy/**").hasAnyRole("PHARMACIST","ADMIN")
+                // ── Pharmacy ──────────────────────────────────────────────
+                .requestMatchers("/api/pharmacy/**").hasAnyRole("PHARMACIST", "ADMIN")
 
-                // ── Lab ───────────────────────────────────────────
-                .requestMatchers("/api/lab/**").hasAnyRole("LAB_TECHNICIAN","ADMIN","DOCTOR")
+                // ── Lab ───────────────────────────────────────────────────
+                .requestMatchers("/api/lab/**").hasAnyRole("LAB_TECHNICIAN", "ADMIN", "DOCTOR")
 
-                // ── Blood bank ────────────────────────────────────
-                .requestMatchers("/api/blood-bank/**").hasAnyRole("BLOOD_BANK_MANAGER","ADMIN")
+                // ── Blood Bank ────────────────────────────────────────────
+                .requestMatchers("/api/blood-bank/**").hasAnyRole("BLOOD_BANK_MANAGER", "ADMIN")
 
-                // ── Ambulance ─────────────────────────────────────
-                .requestMatchers("/api/ambulance/**").hasAnyRole("AMBULANCE_OPERATOR","ADMIN")
+                // ── Ambulance ─────────────────────────────────────────────
+                .requestMatchers("/api/ambulance/**").hasAnyRole("AMBULANCE_OPERATOR", "ADMIN")
 
-                // ── Billing ───────────────────────────────────────
+                // ── Billing ───────────────────────────────────────────────
                 .requestMatchers("/api/billing/my-bills").hasRole("PATIENT")
-                .requestMatchers("/api/billing/**").hasAnyRole("ADMIN","RECEPTIONIST")
+                .requestMatchers("/api/billing/**").hasAnyRole("ADMIN", "RECEPTIONIST")
 
-                // ── Receptionist ──────────────────────────────────
-                .requestMatchers("/api/receptionist/**").hasAnyRole("RECEPTIONIST","ADMIN")
+                // ── Receptionist ──────────────────────────────────────────
+                .requestMatchers("/api/receptionist/**").hasAnyRole("RECEPTIONIST", "ADMIN")
 
-                // ── Appointments (public booking flow) ────────────
+                // ── Appointments (shared booking flow) ────────────────────
                 .requestMatchers("/api/appointments/specializations",
                                  "/api/appointments/doctors",
                                  "/api/appointments/slots").authenticated()
@@ -90,10 +105,10 @@ public class SecurityConfig {
 
     @Bean
     public AuthenticationProvider authenticationProvider() {
-        var p = new DaoAuthenticationProvider();
-        p.setUserDetailsService(userDetailsService);
-        p.setPasswordEncoder(passwordEncoder());
-        return p;
+        var provider = new DaoAuthenticationProvider();
+        provider.setUserDetailsService(userDetailsService);
+        provider.setPasswordEncoder(passwordEncoder());
+        return provider;
     }
 
     @Bean
