@@ -4,6 +4,6 @@ services:
     runtime: docker
     dockerfilePath: ./Dockerfile
     plan: free
-    buildArgs:
-      - name: VITE_API_BASE_URL
+    envVars:
+      - key: VITE_API_BASE_URL
         value: https://medichain-backend.onrender.com
