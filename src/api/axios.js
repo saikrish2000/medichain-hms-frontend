@@ -1,14 +1,15 @@
 import axios from 'axios';
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
+// VITE_API_BASE_URL must end WITHOUT /api — we append it here
+const BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080') + '/api';
 
 const api = axios.create({
   baseURL: BASE_URL,
   headers: { 'Content-Type': 'application/json' },
-  withCredentials: true,  // sends cookies for JWT
+  withCredentials: false,   // JWT via Bearer header, no cookies needed
 });
 
-// ── Request interceptor — attach JWT from localStorage if present ──
+// Attach JWT token from localStorage on every request
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('jwt_token');
@@ -18,7 +19,7 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// ── Response interceptor — handle 401 globally ──
+// Handle 401 globally
 api.interceptors.response.use(
   (response) => response,
   (error) => {
